@@ -1,0 +1,6 @@
+{
+  "name": "Jadwal Makan & Perawatan Kucing Nyunyu",
+  "description": "Aplikasi interaktif jadwal makan, pencatat porsi nutrisi, pengingat otomatis, grafik berat badan bulanan, jadwal obat cacing/kutu, rekam medis, dan sinkronisasi kalender.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
