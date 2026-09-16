@@ -1,0 +1,154 @@
+{
+  "entities": {
+    "CatProfile": {
+      "title": "CatProfile",
+      "description": "Profile, age, weight and nutrition targets for cat Nyunyu",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "ageMonths": { "type": "number" },
+        "weightKg": { "type": "number" },
+        "gender": { "type": "string", "enum": ["jantan", "betina"] },
+        "breed": { "type": "string", "maxLength": 100 },
+        "targetDailyDryG": { "type": "number" },
+        "targetDailyWetG": { "type": "number" },
+        "foodPreference": { "type": "string", "enum": ["more_dry", "balanced", "more_wet"] },
+        "specialNotes": { "type": "string", "maxLength": 500 },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["name", "ageMonths", "weightKg", "targetDailyDryG", "targetDailyWetG", "foodPreference"]
+    },
+    "FeedingLogEntry": {
+      "title": "FeedingLogEntry",
+      "description": "Real-time feeding log entry recorded by a family member",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 30 },
+        "time": { "type": "string", "maxLength": 30 },
+        "mealId": { "type": "string", "maxLength": 50 },
+        "mealTitle": { "type": "string", "maxLength": 100 },
+        "dryFoodG": { "type": "number" },
+        "wetFoodG": { "type": "number" },
+        "fedBy": { "type": "string", "maxLength": 100 },
+        "catMood": { "type": "string", "enum": ["lahap", "biasa", "sisa_sedikit", "mogok"] },
+        "note": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "date", "time", "mealId", "mealTitle", "dryFoodG", "wetFoodG", "fedBy", "catMood"]
+    },
+    "WeightRecord": {
+      "title": "WeightRecord",
+      "description": "Periodic weight log record for kitten growth tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 30 },
+        "weightKg": { "type": "number" },
+        "ageMonthsAtRecord": { "type": "number" },
+        "note": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "date", "weightKg", "ageMonthsAtRecord"]
+    },
+    "MedicationScheduleItem": {
+      "title": "MedicationScheduleItem",
+      "description": "Deworming, flea medicine, and vaccine schedule items",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "type": { "type": "string", "enum": ["cacing", "kutu", "vaksin", "vitamin", "lainnya"] },
+        "dosage": { "type": "string", "maxLength": 100 },
+        "frequencyLabel": { "type": "string", "maxLength": 100 },
+        "frequencyMonths": { "type": "number" },
+        "lastGivenDate": { "type": "string", "maxLength": 30 },
+        "nextDueDate": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "enum": ["aman", "mendekati", "jatuh_tempo", "selesai"] },
+        "administeredBy": { "type": "string", "maxLength": 100 },
+        "notes": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "name", "type", "dosage", "frequencyMonths", "lastGivenDate", "nextDueDate", "status"]
+    },
+    "HealthRecordEntry": {
+      "title": "HealthRecordEntry",
+      "description": "Veterinary clinical history, diagnosis, prescriptions, and vaccines",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 30 },
+        "title": { "type": "string", "maxLength": 150 },
+        "category": { "type": "string", "enum": ["vaksin", "klinik", "sakit", "grooming", "kontrol_rutin"] },
+        "clinicOrDoctor": { "type": "string", "maxLength": 150 },
+        "diagnosis": { "type": "string", "maxLength": 500 },
+        "treatment": { "type": "string", "maxLength": 500 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "weightAtTimeKg": { "type": "number" },
+        "costRp": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "date", "title", "category"]
+    },
+    "FamilyMember": {
+      "title": "FamilyMember",
+      "description": "Family member profile permitted to feed and care for cat",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "maxLength": 100 },
+        "avatarColor": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "name", "role", "avatarColor"]
+    },
+    "MealSchedulesDoc": {
+      "title": "MealSchedulesDoc",
+      "description": "Configured morning, afternoon, and evening feeding schedules",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id"]
+    },
+    "TodayFeedingDoc": {
+      "title": "TodayFeedingDoc",
+      "description": "Real-time feeding check status for today",
+      "type": "object",
+      "properties": {
+        "dateKey": { "type": "string", "maxLength": 30 },
+        "records": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["dateKey"]
+    }
+  },
+  "firestore": {
+    "/nyunyu_data/{docId}": {
+      "schema": "CatProfile",
+      "description": "Shared cat configuration, profile, and schedule metadata"
+    },
+    "/feeding_logs/{logId}": {
+      "schema": "FeedingLogEntry",
+      "description": "Log of each feeding activity with timestamp and notes"
+    },
+    "/weight_logs/{logId}": {
+      "schema": "WeightRecord",
+      "description": "Monthly and periodic weight tracking entries"
+    },
+    "/medication_items/{medId}": {
+      "schema": "MedicationScheduleItem",
+      "description": "Medication items, flea and worming schedule and history"
+    },
+    "/medical_records/{recordId}": {
+      "schema": "HealthRecordEntry",
+      "description": "Veterinary medical records, treatments, and clinic visits"
+    },
+    "/family_members/{memberId}": {
+      "schema": "FamilyMember",
+      "description": "Family members participating in cat feeding and care"
+    }
+  }
+}

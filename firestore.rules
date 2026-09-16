@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'firajitio@gmail.com';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Test connection endpoint
+    match /test/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Shared Nyunyu profile and configuration data
+    match /nyunyu_data/{docId} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser() && isValidId(docId);
+      allow delete: if isAdmin() && isValidId(docId);
+    }
+
+    // Feeding logs
+    match /feeding_logs/{logId} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser() && isValidId(logId);
+      allow delete: if isVerifiedUser() && isValidId(logId);
+    }
+
+    // Monthly & periodic weight logs
+    match /weight_logs/{logId} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser() && isValidId(logId);
+      allow delete: if isVerifiedUser() && isValidId(logId);
+    }
+
+    // Medication items (flea, worming, vaccines)
+    match /medication_items/{medId} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser() && isValidId(medId);
+      allow delete: if isVerifiedUser() && isValidId(medId);
+    }
+
+    // Medical clinic records
+    match /medical_records/{recordId} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser() && isValidId(recordId);
+      allow delete: if isVerifiedUser() && isValidId(recordId);
+    }
+
+    // Family members
+    match /family_members/{memberId} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser() && isValidId(memberId);
+      allow delete: if isVerifiedUser() && isValidId(memberId);
+    }
+  }
+}

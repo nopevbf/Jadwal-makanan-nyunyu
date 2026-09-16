@@ -12,9 +12,14 @@ import {
   Heart,
   Sparkles,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Cloud,
+  LogIn,
+  LogOut,
+  RefreshCw
 } from 'lucide-react';
 import { FamilyMember, FeedingLogEntry } from '../types';
+import { User } from '../firebase';
 
 interface FamilyShareModalProps {
   familyMembers: FamilyMember[];
@@ -26,6 +31,10 @@ interface FamilyShareModalProps {
   darkMode: boolean;
   onExportAllData: () => void;
   onImportData: (jsonStr: string) => void;
+  currentUser?: User | null;
+  isCloudConnected: boolean;
+  onLoginWithGoogle: () => void;
+  onLogoutUser: () => void;
 }
 
 export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
@@ -38,6 +47,10 @@ export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
   darkMode,
   onExportAllData,
   onImportData,
+  currentUser,
+  isCloudConnected,
+  onLoginWithGoogle,
+  onLogoutUser,
 }) => {
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<FamilyMember | null>(null);
@@ -126,6 +139,74 @@ export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
               <UserPlus className="w-4 h-4" />
               <span>Tambah Anggota</span>
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Cloud Database (Firebase Firestore) Real-time Sync Card */}
+      <div className={`p-5 sm:p-6 rounded-3xl border transition-all ${
+        darkMode ? 'bg-neutral-850 border-neutral-800' : 'bg-white border-neutral-200'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-xl ${
+              isCloudConnected
+                ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+            }`}>
+              <Cloud className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold font-display text-sm sm:text-base">
+                  Database Cloud (Firebase Firestore)
+                </h4>
+                <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                  isCloudConnected
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isCloudConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  {isCloudConnected ? 'Real-time Aktif' : 'Tersedia'}
+                </span>
+              </div>
+              <p className="text-xs opacity-70 mt-0.5">
+                {currentUser ? (
+                  <>
+                    Tersambung dengan akun Google <span className="font-semibold text-amber-500 dark:text-amber-400">{currentUser.email || currentUser.displayName}</span>. Setiap catatan makan atau timbang berat di HP mana pun langsung terdeteksi otomatis detik itu juga.
+                  </>
+                ) : (
+                  <>
+                    Data otomatis sinkron langsung ke database cloud saat Anda masuk dengan Google. Seluruh perangkat keluarga akan membaca dan mengupdate data Nyunyu secara bersamaan.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 flex items-center gap-2 self-start sm:self-center">
+            {currentUser ? (
+              <button
+                onClick={onLogoutUser}
+                className={`px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  darkMode
+                    ? 'border-neutral-700 bg-neutral-800 hover:bg-neutral-750 text-neutral-300'
+                    : 'border-neutral-200 bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
+                }`}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Keluar Akun Google</span>
+              </button>
+            ) : (
+              <button
+                onClick={onLoginWithGoogle}
+                id="btn-login-google-sync"
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Masuk dengan Google</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -27,8 +27,42 @@ import { FamilyShareModal } from './components/FamilyShareModal';
 import { CatProfileModal } from './components/CatProfileModal';
 import { MedicalExportModal } from './components/MedicalExportModal';
 import { playCatBellChime } from './utils/audio';
+import {
+  auth,
+  onAuthStateChanged,
+  User,
+  loginWithGoogle,
+  logoutUser,
+  testConnection,
+} from './firebase';
+import {
+  subscribeCatProfile,
+  saveCatProfileToCloud,
+  subscribeMealSchedules,
+  saveMealSchedulesToCloud,
+  subscribeTodayFeeding,
+  saveTodayFeedingToCloud,
+  subscribeFeedingLogs,
+  addFeedingLogToCloud,
+  subscribeWeightLogs,
+  addWeightLogToCloud,
+  deleteWeightLogFromCloud,
+  subscribeMedications,
+  saveMedicationToCloud,
+  subscribeHealthRecords,
+  saveHealthRecordToCloud,
+  deleteHealthRecordFromCloud,
+  subscribeFamilyMembers,
+  saveFamilyMemberToCloud,
+  deleteFamilyMemberFromCloud,
+  seedInitialFirestoreDataIfEmpty,
+} from './services/firestoreSync';
 
 export default function App() {
+  // Auth & Cloud Real-time Sync State
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isCloudConnected, setIsCloudConnected] = useState<boolean>(false);
+
   // Dark mode state
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('nyunyu_dark_mode');
@@ -190,6 +224,115 @@ export default function App() {
     return familyMembers[0] || initialFamilyMembers[0];
   });
 
+  // Cloud Connection & Real-time Synchronization
+  useEffect(() => {
+    // 1. Connection test
+    testConnection().then((connected) => {
+      setIsCloudConnected(connected);
+    });
+
+    // 2. Auth listener
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      if (user) {
+        setIsCloudConnected(true);
+        // Seed initial data if the Firestore collections are empty
+        seedInitialFirestoreDataIfEmpty({
+          profile: initialCatProfile,
+          schedules: initialMealSchedules,
+          feedingLogs: initialFeedingLogs,
+          weightLogs: initialWeightLogs,
+          medications: initialMedications,
+          healthRecords: initialHealthRecords,
+          familyMembers: initialFamilyMembers,
+        }).catch((err) => console.warn('Seed initial check:', err));
+      }
+    });
+
+    // 3. Real-time Firestore sync subscriptions across devices
+    const unsubProfile = subscribeCatProfile((cloudProfile) => {
+      if (cloudProfile && cloudProfile.name) {
+        setProfile(cloudProfile);
+      }
+    });
+
+    const unsubSchedules = subscribeMealSchedules((cloudSchedules) => {
+      if (Array.isArray(cloudSchedules) && cloudSchedules.length > 0) {
+        setSchedules(cloudSchedules);
+      }
+    });
+
+    const unsubToday = subscribeTodayFeeding(getTodayKey(), (cloudRecords) => {
+      if (cloudRecords) {
+        setTodayRecords((prev) => ({ ...prev, ...cloudRecords }));
+      }
+    });
+
+    const unsubFeeding = subscribeFeedingLogs((cloudLogs) => {
+      if (Array.isArray(cloudLogs) && cloudLogs.length > 0) {
+        setFeedingLogs(cloudLogs);
+      }
+    });
+
+    const unsubWeight = subscribeWeightLogs((cloudWeights) => {
+      if (Array.isArray(cloudWeights) && cloudWeights.length > 0) {
+        setWeightLogs(cloudWeights);
+      }
+    });
+
+    const unsubMeds = subscribeMedications((cloudMeds) => {
+      if (Array.isArray(cloudMeds) && cloudMeds.length > 0) {
+        setMedications(cloudMeds);
+      }
+    });
+
+    const unsubHealth = subscribeHealthRecords((cloudHealth) => {
+      if (Array.isArray(cloudHealth) && cloudHealth.length > 0) {
+        setHealthRecords(cloudHealth);
+      }
+    });
+
+    const unsubFamily = subscribeFamilyMembers((cloudMembers) => {
+      if (Array.isArray(cloudMembers) && cloudMembers.length > 0) {
+        setFamilyMembers(cloudMembers);
+        setActiveMember((prev) => {
+          const match = cloudMembers.find((m) => m.id === prev.id);
+          return match || cloudMembers[0];
+        });
+      }
+    });
+
+    return () => {
+      unsubAuth();
+      unsubProfile();
+      unsubSchedules();
+      unsubToday();
+      unsubFeeding();
+      unsubWeight();
+      unsubMeds();
+      unsubHealth();
+      unsubFamily();
+    };
+  }, []);
+
+  const handleLoginWithGoogle = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (err: any) {
+      if (err?.code !== 'auth/popup-closed-by-user') {
+        alert('Gagal menghubungkan Google: ' + (err?.message || err));
+      }
+    }
+  };
+
+  const handleLogoutUser = async () => {
+    try {
+      await logoutUser();
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
+
   // Sound and notification settings
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
@@ -254,7 +397,7 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  // Meal toggle handler
+  // Meal toggle handler with real-time cloud sync
   const handleToggleMealStatus = (
     mealId: string,
     customDetails?: { actualDry?: number; actualWet?: number; mood?: any; note?: string }
@@ -272,14 +415,15 @@ export default function App() {
       const updated = { ...todayRecords };
       delete updated[mealId];
       setTodayRecords(updated);
+      saveTodayFeedingToCloud(todayStr, updated).catch((err) => console.warn('Cloud sync error:', err));
     } else {
       // Mark done
       const actualDry = customDetails?.actualDry ?? meal?.dryFoodG ?? 16;
       const actualWet = customDetails?.actualWet ?? meal?.wetFoodG ?? 18;
       const mood = customDetails?.mood ?? 'lahap';
 
-      setTodayRecords((prev) => ({
-        ...prev,
+      const updatedRecords: Record<string, DailyFeedingRecord> = {
+        ...todayRecords,
         [mealId]: {
           mealId: mealId as any,
           isDone: true,
@@ -290,7 +434,10 @@ export default function App() {
           mood,
           note: customDetails?.note,
         },
-      }));
+      };
+
+      setTodayRecords(updatedRecords);
+      saveTodayFeedingToCloud(todayStr, updatedRecords).catch((err) => console.warn('Cloud sync error:', err));
 
       // Add to persistent feeding history log
       const newEntry: FeedingLogEntry = {
@@ -307,6 +454,7 @@ export default function App() {
       };
 
       setFeedingLogs((prev) => [newEntry, ...prev]);
+      addFeedingLogToCloud(newEntry).catch((err) => console.warn('Cloud sync error:', err));
     }
   };
 
@@ -316,6 +464,7 @@ export default function App() {
       id: `fl-${Date.now()}`,
     };
     setFeedingLogs((prev) => [newLog, ...prev]);
+    addFeedingLogToCloud(newLog).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   const handleDeleteFeedingLog = (id: string) => {
@@ -328,14 +477,17 @@ export default function App() {
       id: `w-${Date.now()}`,
     };
     setWeightLogs((prev) => [...prev, newRecord]);
+    addWeightLogToCloud(newRecord).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   const handleDeleteWeightLog = (id: string) => {
     setWeightLogs((prev) => prev.filter((w) => w.id !== id));
+    deleteWeightLogFromCloud(id).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   const handleUpdateMedication = (updated: MedicationScheduleItem) => {
     setMedications((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    saveMedicationToCloud(updated).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   const handleAddMedication = (newMed: Omit<MedicationScheduleItem, 'id' | 'history'>) => {
@@ -345,6 +497,7 @@ export default function App() {
       history: [],
     };
     setMedications((prev) => [...prev, item]);
+    saveMedicationToCloud(item).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   const handleAddHealthRecord = (record: Omit<HealthRecordEntry, 'id'>) => {
@@ -353,10 +506,12 @@ export default function App() {
       id: `hr-${Date.now()}`,
     };
     setHealthRecords((prev) => [newRec, ...prev]);
+    saveHealthRecordToCloud(newRec).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   const handleDeleteHealthRecord = (id: string) => {
     setHealthRecords((prev) => prev.filter((h) => h.id !== id));
+    deleteHealthRecordFromCloud(id).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   const handleAddFamilyMember = (newMem: Omit<FamilyMember, 'id'>) => {
@@ -365,15 +520,27 @@ export default function App() {
       id: `fam-${Date.now()}`,
     };
     setFamilyMembers((prev) => [...prev, item]);
+    saveFamilyMemberToCloud(item).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   const handleDeleteFamilyMember = (id: string) => {
     if (familyMembers.length <= 1) return;
     const remaining = familyMembers.filter((m) => m.id !== id);
     setFamilyMembers(remaining);
+    deleteFamilyMemberFromCloud(id).catch((err) => console.warn('Cloud sync error:', err));
     if (activeMember.id === id && remaining.length > 0) {
       setActiveMember(remaining[0]);
     }
+  };
+
+  const handleSaveProfile = (updated: CatProfile) => {
+    setProfile(updated);
+    saveCatProfileToCloud(updated).catch((err) => console.warn('Cloud sync error:', err));
+  };
+
+  const handleUpdateSchedules = (updated: MealScheduleItem[]) => {
+    setSchedules(updated);
+    saveMealSchedulesToCloud(updated).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   // Full app data backup exporter & importer
@@ -401,9 +568,12 @@ export default function App() {
 
   const handleImportData = (jsonStr: string) => {
     const parsed = JSON.parse(jsonStr);
-    if (parsed.profile) setProfile(parsed.profile);
-    if (parsed.schedules) setSchedules(parsed.schedules);
-    if (parsed.todayRecords) setTodayRecords(parsed.todayRecords);
+    if (parsed.profile) handleSaveProfile(parsed.profile);
+    if (parsed.schedules) handleUpdateSchedules(parsed.schedules);
+    if (parsed.todayRecords) {
+      setTodayRecords(parsed.todayRecords);
+      saveTodayFeedingToCloud(getTodayKey(), parsed.todayRecords).catch(() => {});
+    }
     if (parsed.feedingLogs) setFeedingLogs(parsed.feedingLogs);
     if (parsed.weightLogs) setWeightLogs(parsed.weightLogs);
     if (parsed.medications) setMedications(parsed.medications);
@@ -431,6 +601,10 @@ export default function App() {
         onRequestNotificationPermission={requestNotificationPermission}
         soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled}
+        currentUser={currentUser}
+        isCloudConnected={isCloudConnected}
+        onLoginWithGoogle={handleLoginWithGoogle}
+        onLogoutUser={handleLogoutUser}
       />
 
       {/* Main App Content Body */}
@@ -441,7 +615,7 @@ export default function App() {
           <MealScheduleView
             profile={profile}
             schedules={schedules}
-            onUpdateSchedules={setSchedules}
+            onUpdateSchedules={handleUpdateSchedules}
             todayRecords={todayRecords}
             onToggleMealStatus={handleToggleMealStatus}
             feedingLogs={feedingLogs}
@@ -500,6 +674,10 @@ export default function App() {
             darkMode={darkMode}
             onExportAllData={handleExportAllData}
             onImportData={handleImportData}
+            currentUser={currentUser}
+            isCloudConnected={isCloudConnected}
+            onLoginWithGoogle={handleLoginWithGoogle}
+            onLogoutUser={handleLogoutUser}
           />
         )}
 
@@ -510,9 +688,9 @@ export default function App() {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         profile={profile}
-        onSaveProfile={setProfile}
+        onSaveProfile={handleSaveProfile}
         schedules={schedules}
-        onUpdateSchedules={setSchedules}
+        onUpdateSchedules={handleUpdateSchedules}
         darkMode={darkMode}
       />
 
