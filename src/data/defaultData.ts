@@ -59,10 +59,7 @@ export const initialMealSchedules: MealScheduleItem[] = [
 ];
 
 export const initialFamilyMembers: FamilyMember[] = [
-  { id: 'fira', name: 'Fira', role: 'Pemilik Utama', avatarColor: 'bg-rose-500' },
-  { id: 'mama', name: 'Mama', role: 'Keluarga', avatarColor: 'bg-amber-500' },
-  { id: 'papa', name: 'Papa', role: 'Keluarga', avatarColor: 'bg-emerald-500' },
-  { id: 'kakak', name: 'Kakak', role: 'Keluarga', avatarColor: 'bg-indigo-500' },
+  { id: 'ka-aji', name: 'Ka Aji', role: 'Pemilik Utama', avatarColor: 'bg-red-500' },
 ];
 
 export const initialWeightLogs: WeightRecord[] = [
@@ -73,56 +70,7 @@ export const initialWeightLogs: WeightRecord[] = [
   { id: 'w5', date: '2026-09-15', weightKg: 2.05, ageMonthsAtRecord: 6, note: 'Target 2 kg tercapai! Dokter puas dengan perkembangannya' },
 ];
 
-export const initialFeedingLogs: FeedingLogEntry[] = [
-  {
-    id: 'fl-1',
-    date: '2026-09-16',
-    time: '07:12',
-    mealId: 'pagi',
-    mealTitle: 'Pagi',
-    dryFoodG: 16,
-    wetFoodG: 19,
-    fedBy: 'Fira',
-    catMood: 'lahap',
-    note: 'Habis bersih tak bersisa, minum air cukup',
-  },
-  {
-    id: 'fl-2',
-    date: '2026-09-15',
-    time: '19:05',
-    mealId: 'malam',
-    mealTitle: 'Malam',
-    dryFoodG: 17,
-    wetFoodG: 18,
-    fedBy: 'Mama',
-    catMood: 'lahap',
-    note: 'Diberikan tepat waktu',
-  },
-  {
-    id: 'fl-3',
-    date: '2026-09-15',
-    time: '13:10',
-    mealId: 'siang',
-    mealTitle: 'Siang',
-    dryFoodG: 16,
-    wetFoodG: 18,
-    fedBy: 'Kakak',
-    catMood: 'lahap',
-    note: 'Makan lahap lalu tidur siang',
-  },
-  {
-    id: 'fl-4',
-    date: '2026-09-15',
-    time: '07:15',
-    mealId: 'pagi',
-    mealTitle: 'Pagi',
-    dryFoodG: 16,
-    wetFoodG: 19,
-    fedBy: 'Papa',
-    catMood: 'lahap',
-    note: 'Pagi hari minta makan sambil ngeong manja',
-  },
-];
+export const initialFeedingLogs: FeedingLogEntry[] = [];
 
 export const initialMedications: MedicationScheduleItem[] = [
   {
@@ -135,10 +83,10 @@ export const initialMedications: MedicationScheduleItem[] = [
     lastGivenDate: '2026-07-20',
     nextDueDate: '2026-10-20',
     status: 'aman',
-    administeredBy: 'Fira & Dokter Hewan',
+    administeredBy: 'Ka Aji & Dokter Hewan',
     notes: 'Diminumkan bersama camilan creamy lickable treat agar mudah ditelan.',
     history: [
-      { id: 'h-1', date: '2026-07-20', givenBy: 'Fira', notes: 'Dosis 1/2 tablet saat BB 1.5 kg' },
+      { id: 'h-1', date: '2026-07-20', givenBy: 'Ka Aji', notes: 'Dosis 1/2 tablet saat BB 1.5 kg' },
       { id: 'h-2', date: '2026-04-20', givenBy: 'Drh. Sarah', notes: 'Dosis pertama saat usia 1 bulan lebih' },
     ],
   },
@@ -152,11 +100,11 @@ export const initialMedications: MedicationScheduleItem[] = [
     lastGivenDate: '2026-08-22',
     nextDueDate: '2026-09-22',
     status: 'mendekati',
-    administeredBy: 'Fira',
+    administeredBy: 'Ka Aji',
     notes: 'Teteskan langsung di kulit pangkal leher/tengkuk. Jangan mandikan 48 jam sesudahnya.',
     history: [
-      { id: 'h-3', date: '2026-08-22', givenBy: 'Fira', notes: 'Bebas kutu, bulu halus terawat' },
-      { id: 'h-4', date: '2026-07-22', givenBy: 'Fira', notes: 'Pencegahan kutu & pinworm bulanan' },
+      { id: 'h-3', date: '2026-08-22', givenBy: 'Ka Aji', notes: 'Bebas kutu, bulu halus terawat' },
+      { id: 'h-4', date: '2026-07-22', givenBy: 'Ka Aji', notes: 'Pencegahan kutu & pinworm bulanan' },
     ],
   },
   {

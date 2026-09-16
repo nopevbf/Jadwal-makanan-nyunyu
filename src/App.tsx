@@ -26,6 +26,10 @@ import { MedicalRecordsView } from './components/MedicalRecordsView';
 import { FamilyShareModal } from './components/FamilyShareModal';
 import { CatProfileModal } from './components/CatProfileModal';
 import { MedicalExportModal } from './components/MedicalExportModal';
+import { LogoutConfirmModal } from './components/LogoutConfirmModal';
+import { InitialAccessModal } from './components/InitialAccessModal';
+import { OwnerPinModal } from './components/OwnerPinModal';
+import { ToastNotification } from './components/ToastNotification';
 import { playCatBellChime } from './utils/audio';
 import {
   auth,
@@ -56,6 +60,7 @@ import {
   saveFamilyMemberToCloud,
   deleteFamilyMemberFromCloud,
   seedInitialFirestoreDataIfEmpty,
+  cleanOldFirestoreData,
 } from './services/firestoreSync';
 
 export default function App() {
@@ -143,9 +148,16 @@ export default function App() {
     localStorage.setItem(key, JSON.stringify(todayRecords));
   }, [todayRecords]);
 
+  // Migration key to clean old mock feeding history and set Ka Aji as sole primary owner
+  const MIGRATION_KEY = 'nyunyu_v2_clean_ka_aji';
+
   // Feeding logs history
   const [feedingLogs, setFeedingLogs] = useState<FeedingLogEntry[]>(() => {
     try {
+      if (localStorage.getItem(MIGRATION_KEY) !== 'true') {
+        localStorage.removeItem('nyunyu_feeding_logs');
+        return [];
+      }
       const saved = localStorage.getItem('nyunyu_feeding_logs');
       return saved ? JSON.parse(saved) : initialFeedingLogs;
     } catch {
@@ -209,8 +221,21 @@ export default function App() {
   // Family Members
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>(() => {
     try {
+      if (localStorage.getItem(MIGRATION_KEY) !== 'true') {
+        localStorage.setItem('nyunyu_family_members', JSON.stringify(initialFamilyMembers));
+        localStorage.setItem(MIGRATION_KEY, 'true');
+        return initialFamilyMembers;
+      }
       const saved = localStorage.getItem('nyunyu_family_members');
-      return saved ? JSON.parse(saved) : initialFamilyMembers;
+      if (saved) {
+        const parsed: FamilyMember[] = JSON.parse(saved);
+        const hasKaAji = parsed.some((m) => m.name === 'Ka Aji' || m.id === 'ka-aji');
+        if (!hasKaAji) {
+          return initialFamilyMembers;
+        }
+        return parsed;
+      }
+      return initialFamilyMembers;
     } catch {
       return initialFamilyMembers;
     }
@@ -221,8 +246,37 @@ export default function App() {
   }, [familyMembers]);
 
   const [activeMember, setActiveMember] = useState<FamilyMember>(() => {
-    return familyMembers[0] || initialFamilyMembers[0];
+    try {
+      const savedSessionId = sessionStorage.getItem('nyunyu_session_access_selected');
+      if (savedSessionId) {
+        const found = familyMembers.find((m) => m.id === savedSessionId);
+        if (found) return found;
+      }
+    } catch {}
+    // If there is any non-primary member, default to them initially
+    const nonPrimary = familyMembers.find(
+      (m) => m.role !== 'Pemilik Utama' && m.name !== 'Ka Aji' && m.id !== 'ka-aji'
+    );
+    if (nonPrimary) return nonPrimary;
+    return familyMembers.find((m) => m.name === 'Ka Aji' || m.id === 'ka-aji') || familyMembers[0] || initialFamilyMembers[0];
   });
+
+  // Initial Access Selection Modal ("saat buka, user akan di suruh memilih akses sebagai siapa")
+  const [isInitialAccessModalOpen, setIsInitialAccessModalOpen] = useState<boolean>(() => {
+    try {
+      const selected = sessionStorage.getItem('nyunyu_session_access_selected');
+      return !selected;
+    } catch {
+      return true;
+    }
+  });
+
+  // Owner PIN Modal ("221996" PIN protection when switching to Pemilik Utama Ka Aji)
+  const [isOwnerPinModalOpen, setIsOwnerPinModalOpen] = useState<boolean>(false);
+  const [pendingOwnerMember, setPendingOwnerMember] = useState<FamilyMember | null>(null);
+
+  // Top-right Toast notification when successfully switched
+  const [toastNotification, setToastNotification] = useState<{ message: string; description?: string } | null>(null);
 
   // Cloud Connection & Real-time Synchronization
   useEffect(() => {
@@ -236,6 +290,9 @@ export default function App() {
       setCurrentUser(user);
       if (user) {
         setIsCloudConnected(true);
+        // Clean old Firestore data (feeding logs and old family members)
+        cleanOldFirestoreData().catch((err) => console.warn('Clean Firestore data:', err));
+
         // Seed initial data if the Firestore collections are empty
         seedInitialFirestoreDataIfEmpty({
           profile: initialCatProfile,
@@ -319,13 +376,34 @@ export default function App() {
     try {
       await loginWithGoogle();
     } catch (err: any) {
-      if (err?.code !== 'auth/popup-closed-by-user') {
-        alert('Gagal menghubungkan Google: ' + (err?.message || err));
+      if (
+        err?.code === 'auth/popup-closed-by-user' ||
+        err?.code === 'auth/cancelled-popup-request' ||
+        err?.code === 'auth/popup-blocked' ||
+        err?.message?.includes('popup-closed-by-user')
+      ) {
+        return;
       }
+      if (err?.code === 'auth/unauthorized-domain' || err?.message?.includes('unauthorized-domain')) {
+        alert(
+          'Domain Vercel belum didaftarkan di Firebase Authentication!\n\n' +
+          'Cara aktifkan (1 menit):\n' +
+          '1. Buka Firebase Console project jokikampus: https://console.firebase.google.com/project/jokikampus/authentication/settings\n' +
+          '2. Buka tab "Settings" -> "Authorized domains" (Domain yang diizinkan)\n' +
+          '3. Klik "Add domain" lalu masukkan: nyunyu.vercel.app\n' +
+          '4. Simpan, lalu coba klik login lagi.'
+        );
+        return;
+      }
+      alert('Gagal menghubungkan Google: ' + (err?.message || err));
     }
   };
 
-  const handleLogoutUser = async () => {
+  const handleLogoutUser = () => {
+    setIsLogoutModalOpen(true);
+  };
+
+  const handleConfirmLogout = async () => {
     try {
       await logoutUser();
     } catch (err) {
@@ -396,6 +474,7 @@ export default function App() {
   // Modals state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Meal toggle handler with real-time cloud sync
   const handleToggleMealStatus = (
@@ -514,16 +593,84 @@ export default function App() {
     deleteHealthRecordFromCloud(id).catch((err) => console.warn('Cloud sync error:', err));
   };
 
-  const handleAddFamilyMember = (newMem: Omit<FamilyMember, 'id'>) => {
+  const handleAddFamilyMember = (newMem: Omit<FamilyMember, 'id'>): FamilyMember => {
     const item: FamilyMember = {
       ...newMem,
       id: `fam-${Date.now()}`,
     };
     setFamilyMembers((prev) => [...prev, item]);
     saveFamilyMemberToCloud(item).catch((err) => console.warn('Cloud sync error:', err));
+    return item;
+  };
+
+  const handleSelectInitialMember = (member: FamilyMember) => {
+    setActiveMember(member);
+    setIsInitialAccessModalOpen(false);
+    try {
+      sessionStorage.setItem('nyunyu_session_access_selected', member.id);
+    } catch {}
+  };
+
+  const handleRequestSelectMember = (member: FamilyMember) => {
+    const isOwner = member.role === 'Pemilik Utama' || member.name === 'Ka Aji' || member.id === 'ka-aji';
+    if (isOwner) {
+      if (activeMember.id === member.id) {
+        return; // Already active as owner
+      }
+      setPendingOwnerMember(member);
+      setIsOwnerPinModalOpen(true);
+      return;
+    }
+
+    setActiveMember(member);
+    try {
+      sessionStorage.setItem('nyunyu_session_access_selected', member.id);
+    } catch {}
+  };
+
+  const handleOwnerPinSuccess = () => {
+    const ownerMember =
+      pendingOwnerMember ||
+      familyMembers.find((m) => m.name === 'Ka Aji' || m.id === 'ka-aji') ||
+      familyMembers[0];
+    setActiveMember(ownerMember);
+    try {
+      sessionStorage.setItem('nyunyu_session_access_selected', ownerMember.id);
+    } catch {}
+    setIsOwnerPinModalOpen(false);
+    setPendingOwnerMember(null);
+    setToastNotification({
+      message: 'Berhasil beralih ke Pemilik Utama (Ka Aji)',
+      description: 'Akses penuh dan pengelolaan profil telah diaktifkan.',
+    });
+  };
+
+  const handleOwnerPinFirstFailure = () => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const securityLog: FeedingLogEntry = {
+      id: `sec-${Date.now()}`,
+      date: todayStr,
+      time: timeStr,
+      mealId: 'security',
+      mealTitle: 'Percobaan Akses PIN',
+      dryFoodG: 0,
+      wetFoodG: 0,
+      fedBy: activeMember.name,
+      catMood: 'biasa',
+      note: 'Gagal memasukkan PIN Pemilik Utama',
+    };
+    setFeedingLogs((prev) => [securityLog, ...prev]);
+    addFeedingLogToCloud(securityLog).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   const handleDeleteFamilyMember = (id: string) => {
+    const member = familyMembers.find((m) => m.id === id);
+    if (member && (member.role === 'Pemilik Utama' || member.name === 'Ka Aji' || member.id === 'ka-aji')) {
+      console.warn('Pemilik Utama (Ka Aji) tidak dapat dihapus.');
+      return;
+    }
     if (familyMembers.length <= 1) return;
     const remaining = familyMembers.filter((m) => m.id !== id);
     setFamilyMembers(remaining);
@@ -595,7 +742,7 @@ export default function App() {
         setDarkMode={setDarkMode}
         activeMember={activeMember}
         familyMembers={familyMembers}
-        setActiveMember={setActiveMember}
+        setActiveMember={handleRequestSelectMember}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
         notificationPermission={notificationPermission}
         onRequestNotificationPermission={requestNotificationPermission}
@@ -667,7 +814,7 @@ export default function App() {
           <FamilyShareModal
             familyMembers={familyMembers}
             activeMember={activeMember}
-            onSelectMember={setActiveMember}
+            onSelectMember={handleRequestSelectMember}
             onAddMember={handleAddFamilyMember}
             onDeleteMember={handleDeleteFamilyMember}
             recentLogs={feedingLogs}
@@ -702,6 +849,43 @@ export default function App() {
         medications={medications}
         weightLogs={weightLogs}
         feedingLogs={feedingLogs}
+        darkMode={darkMode}
+      />
+
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirmLogout={handleConfirmLogout}
+        darkMode={darkMode}
+        userEmailOrName={currentUser?.displayName || currentUser?.email || undefined}
+      />
+
+      {/* Modal Pilih Akses saat Pertama Kali Buka Aplikasi */}
+      <InitialAccessModal
+        isOpen={isInitialAccessModalOpen}
+        familyMembers={familyMembers}
+        onSelectMember={handleSelectInitialMember}
+        onAddMember={handleAddFamilyMember}
+        darkMode={darkMode}
+      />
+
+      {/* Modal Verifikasi PIN 6-Digit untuk Akses Pemilik Utama */}
+      <OwnerPinModal
+        isOpen={isOwnerPinModalOpen}
+        onClose={() => {
+          setIsOwnerPinModalOpen(false);
+          setPendingOwnerMember(null);
+        }}
+        onSuccess={handleOwnerPinSuccess}
+        onFirstFailure={handleOwnerPinFirstFailure}
+        darkMode={darkMode}
+      />
+
+      {/* Toast Notifikasi Berhasil Pindah Akses di Pojok Kanan Atas */}
+      <ToastNotification
+        message={toastNotification?.message || null}
+        description={toastNotification?.description}
+        onClose={() => setToastNotification(null)}
         darkMode={darkMode}
       />
 

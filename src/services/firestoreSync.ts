@@ -6,7 +6,7 @@ import {
   onSnapshot,
   getDocs,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import {
   CatProfile,
   MealScheduleItem,
@@ -39,6 +39,7 @@ export function subscribeCatProfile(
 }
 
 export async function saveCatProfileToCloud(profile: CatProfile): Promise<void> {
+  if (!auth.currentUser) return;
   const path = 'nyunyu_data/profile';
   try {
     await setDoc(doc(db, 'nyunyu_data', 'profile'), {
@@ -71,6 +72,7 @@ export function subscribeMealSchedules(
 }
 
 export async function saveMealSchedulesToCloud(schedules: MealScheduleItem[]): Promise<void> {
+  if (!auth.currentUser) return;
   const path = 'nyunyu_data/schedules';
   try {
     await setDoc(doc(db, 'nyunyu_data', 'schedules'), {
@@ -107,6 +109,7 @@ export async function saveTodayFeedingToCloud(
   dateKey: string,
   records: Record<string, DailyFeedingRecord>
 ): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `nyunyu_data/today_${dateKey}`;
   try {
     await setDoc(doc(db, 'nyunyu_data', `today_${dateKey}`), {
@@ -144,6 +147,7 @@ export function subscribeFeedingLogs(
 }
 
 export async function addFeedingLogToCloud(log: FeedingLogEntry): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `feeding_logs/${log.id}`;
   try {
     await setDoc(doc(db, 'feeding_logs', log.id), {
@@ -179,6 +183,7 @@ export function subscribeWeightLogs(
 }
 
 export async function addWeightLogToCloud(log: WeightRecord): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `weight_logs/${log.id}`;
   try {
     await setDoc(doc(db, 'weight_logs', log.id), log);
@@ -188,6 +193,7 @@ export async function addWeightLogToCloud(log: WeightRecord): Promise<void> {
 }
 
 export async function deleteWeightLogFromCloud(id: string): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `weight_logs/${id}`;
   try {
     await deleteDoc(doc(db, 'weight_logs', id));
@@ -219,6 +225,7 @@ export function subscribeMedications(
 }
 
 export async function saveMedicationToCloud(med: MedicationScheduleItem): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `medication_items/${med.id}`;
   try {
     await setDoc(doc(db, 'medication_items', med.id), med);
@@ -251,6 +258,7 @@ export function subscribeHealthRecords(
 }
 
 export async function saveHealthRecordToCloud(record: HealthRecordEntry): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `medical_records/${record.id}`;
   try {
     await setDoc(doc(db, 'medical_records', record.id), record);
@@ -260,6 +268,7 @@ export async function saveHealthRecordToCloud(record: HealthRecordEntry): Promis
 }
 
 export async function deleteHealthRecordFromCloud(id: string): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `medical_records/${id}`;
   try {
     await deleteDoc(doc(db, 'medical_records', id));
@@ -291,6 +300,7 @@ export function subscribeFamilyMembers(
 }
 
 export async function saveFamilyMemberToCloud(member: FamilyMember): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `family_members/${member.id}`;
   try {
     await setDoc(doc(db, 'family_members', member.id), member);
@@ -300,6 +310,7 @@ export async function saveFamilyMemberToCloud(member: FamilyMember): Promise<voi
 }
 
 export async function deleteFamilyMemberFromCloud(id: string): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `family_members/${id}`;
   try {
     await deleteDoc(doc(db, 'family_members', id));
@@ -318,6 +329,7 @@ export async function seedInitialFirestoreDataIfEmpty(defaults: {
   healthRecords: HealthRecordEntry[];
   familyMembers: FamilyMember[];
 }): Promise<void> {
+  if (!auth.currentUser) return;
   try {
     const membersSnap = await getDocs(collection(db, 'family_members'));
     if (membersSnap.empty) {
@@ -346,3 +358,34 @@ export async function seedInitialFirestoreDataIfEmpty(defaults: {
     console.warn('Seeding check skipped or not authenticated yet:', err);
   }
 }
+
+// Clean old feeding logs and reset family members to Ka Aji as primary owner in Firestore
+export async function cleanOldFirestoreData(): Promise<void> {
+  if (!auth.currentUser) return;
+  try {
+    // 1. Delete all documents in feeding_logs collection
+    const feedingSnap = await getDocs(collection(db, 'feeding_logs'));
+    for (const d of feedingSnap.docs) {
+      await deleteDoc(doc(db, 'feeding_logs', d.id));
+    }
+
+    // 2. Delete old family members not named Ka Aji
+    const membersSnap = await getDocs(collection(db, 'family_members'));
+    for (const d of membersSnap.docs) {
+      if (d.id !== 'ka-aji') {
+        await deleteDoc(doc(db, 'family_members', d.id));
+      }
+    }
+
+    // 3. Ensure Ka Aji is saved as Pemilik Utama
+    await setDoc(doc(db, 'family_members', 'ka-aji'), {
+      id: 'ka-aji',
+      name: 'Ka Aji',
+      role: 'Pemilik Utama',
+      avatarColor: 'bg-red-500',
+    });
+  } catch (err) {
+    console.warn('Clean old Firestore data error:', err);
+  }
+}
+

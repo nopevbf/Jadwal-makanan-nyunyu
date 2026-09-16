@@ -12,8 +12,7 @@ import {
   ChevronDown,
   Cloud,
   Check,
-  LogIn,
-  LogOut
+  LogIn
 } from 'lucide-react';
 import { CatProfile, FamilyMember } from '../types';
 import { playCatBellChime } from '../utils/audio';
@@ -249,51 +248,43 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Volume2 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${!soundEnabled ? 'opacity-40' : ''}`} />
               </button>
 
-              {/* Cloud Sync & Google Auth Pill */}
-              {currentUser ? (
-                <div className="flex items-center gap-1">
-                  <div
-                    className={`flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs ${
-                      darkMode
-                        ? 'bg-emerald-950/30 border-emerald-800/60 text-emerald-400'
-                        : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                    }`}
-                    title={`Cloud Real-time Aktif (${currentUser.email || currentUser.displayName})`}
-                  >
+              {/* Cloud Sync Button (Click to login, or click to logout) */}
+              <button
+                id="btn-cloud-sync-toggle"
+                onClick={currentUser ? onLogoutUser : onLoginWithGoogle}
+                className={`flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition-all text-xs font-medium cursor-pointer ${
+                  currentUser
+                    ? darkMode
+                      ? 'bg-emerald-950/30 border-emerald-800/60 text-emerald-400 hover:bg-emerald-900/40 hover:border-emerald-700'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300'
+                    : darkMode
+                      ? 'bg-amber-950/30 border-amber-800/60 text-amber-300 hover:bg-amber-900/40'
+                      : 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100'
+                }`}
+                title={
+                  currentUser
+                    ? `Cloud Real-time Aktif (${currentUser.displayName || currentUser.email}). Klik untuk opsi putuskan sinkronisasi.`
+                    : 'Hubungkan akun Google agar data tersinkron otomatis antar HP'
+                }
+              >
+                {currentUser ? (
+                  <>
                     <span className="relative flex h-2 w-2 shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
                     <Cloud className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden lg:inline font-medium text-[11px] truncate max-w-[100px]">
+                    <span className="font-medium text-[11px] truncate max-w-[85px] sm:max-w-[110px]">
                       {currentUser.displayName || currentUser.email?.split('@')[0]}
                     </span>
-                  </div>
-                  <button
-                    onClick={onLogoutUser}
-                    className={`w-8 h-8 p-1.5 rounded-xl border text-xs opacity-60 hover:opacity-100 transition-opacity flex items-center justify-center ${
-                      darkMode ? 'border-neutral-700 hover:bg-neutral-800 text-neutral-300' : 'border-neutral-200 hover:bg-neutral-100 text-neutral-700'
-                    }`}
-                    title="Keluar dari Akun Google"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  id="btn-cloud-sync-login"
-                  onClick={onLoginWithGoogle}
-                  className={`flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition-all text-xs font-medium cursor-pointer ${
-                    darkMode
-                      ? 'bg-amber-950/30 border-amber-800/60 text-amber-300 hover:bg-amber-900/40'
-                      : 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100'
-                  }`}
-                  title="Hubungkan akun Google agar data tersinkron otomatis antar HP"
-                >
-                  <Cloud className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span className="hidden sm:inline">Sinkron Cloud</span>
-                </button>
-              )}
+                  </>
+                ) : (
+                  <>
+                    <Cloud className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span className="hidden sm:inline">Sinkron Cloud</span>
+                  </>
+                )}
+              </button>
 
               {/* Dark Mode Toggle */}
               <button

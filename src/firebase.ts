@@ -73,12 +73,21 @@ export async function testConnection(): Promise<boolean> {
 export { onAuthStateChanged };
 export type { User };
 
-export async function loginWithGoogle(): Promise<User> {
+export async function loginWithGoogle(): Promise<User | null> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
-  } catch (error) {
-    console.error('Login error:', error);
+  } catch (error: any) {
+    // If the user closed or cancelled the popup dialog, handle it gracefully
+    if (
+      error?.code === 'auth/popup-closed-by-user' ||
+      error?.code === 'auth/cancelled-popup-request' ||
+      error?.code === 'auth/popup-blocked' ||
+      (typeof error?.message === 'string' && error.message.includes('popup-closed-by-user'))
+    ) {
+      return null;
+    }
+    console.error('Google sign-in error:', error);
     throw error;
   }
 }

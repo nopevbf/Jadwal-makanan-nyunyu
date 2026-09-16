@@ -14,9 +14,8 @@ import {
   Trash2,
   AlertTriangle,
   Cloud,
-  LogIn,
-  LogOut,
-  RefreshCw
+  RefreshCw,
+  ShieldAlert,
 } from 'lucide-react';
 import { FamilyMember, FeedingLogEntry } from '../types';
 import { User } from '../firebase';
@@ -62,6 +61,7 @@ export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
   const [showImportBox, setShowImportBox] = useState(false);
 
   const colors = [
+    { label: 'Merah', val: 'bg-red-500' },
     { label: 'Rose', val: 'bg-rose-500' },
     { label: 'Amber', val: 'bg-amber-500' },
     { label: 'Emerald', val: 'bg-emerald-500' },
@@ -76,11 +76,12 @@ export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
 
     onAddMember({
       name: name.trim(),
-      role,
+      role: role.trim() || 'Keluarga',
       avatarColor,
     });
 
     setName('');
+    setRole('Keluarga');
     setShowAddMember(false);
   };
 
@@ -184,29 +185,22 @@ export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
             </div>
           </div>
 
-          <div className="shrink-0 flex items-center gap-2 self-start sm:self-center">
-            {currentUser ? (
-              <button
-                onClick={onLogoutUser}
-                className={`px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-                  darkMode
-                    ? 'border-neutral-700 bg-neutral-800 hover:bg-neutral-750 text-neutral-300'
-                    : 'border-neutral-200 bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
-                }`}
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Keluar Akun Google</span>
-              </button>
-            ) : (
-              <button
-                onClick={onLoginWithGoogle}
-                id="btn-login-google-sync"
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>Masuk dengan Google</span>
-              </button>
-            )}
+          <div className="shrink-0 flex items-center self-start sm:self-center">
+            <button
+              onClick={currentUser ? onLogoutUser : onLoginWithGoogle}
+              id="btn-cloud-sync-modal-action"
+              className={`px-4 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                currentUser
+                  ? darkMode
+                    ? 'border-emerald-800/60 bg-emerald-950/30 hover:bg-emerald-900/40 text-emerald-300'
+                    : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+                  : 'border-transparent bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-sm'
+              }`}
+              title={currentUser ? 'Klik untuk opsi pemutusan sinkronisasi cloud' : 'Hubungkan akun Google'}
+            >
+              <Cloud className="w-4 h-4 shrink-0" />
+              <span>{currentUser ? 'Tersinkron (Klik untuk Keluar)' : 'Masuk dengan Google'}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -230,7 +224,8 @@ export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {familyMembers.map((member) => {
             const isSelected = activeMember.id === member.id;
-            const canDelete = familyMembers.length > 1;
+            const isMainOwner = member.role === 'Pemilik Utama' || member.name === 'Ka Aji' || member.id === 'ka-aji';
+            const canDelete = !isMainOwner && familyMembers.length > 1;
 
             return (
               <div
@@ -268,7 +263,7 @@ export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   ) : (
-                    <span className="text-[10px] opacity-40 px-1.5 py-0.5 rounded bg-neutral-200/50 dark:bg-neutral-700/50" title="Minimal 1 anggota">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20" title="Pemilik Utama tidak dapat dihapus">
                       Utama
                     </span>
                   )}
@@ -375,22 +370,52 @@ export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
         </div>
 
         <div className="space-y-2.5">
-          {recentLogs.slice(0, 5).map((log) => (
-            <div
-              key={log.id}
-              className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200/60 dark:border-neutral-700/60 flex items-center justify-between text-xs"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <div>
-                  <span className="font-bold">{log.fedBy}</span> telah memberi makan{' '}
-                  <span className="text-amber-600 dark:text-amber-400 font-semibold">{log.mealTitle}</span>
-                  <span className="opacity-50 text-[11px] ml-2">({log.date} pukul {log.time})</span>
-                </div>
-              </div>
-              <span className="text-[11px] opacity-60">Dry {log.dryFoodG}g + Wet {log.wetFoodG}g</span>
+          {recentLogs.length === 0 ? (
+            <div className="p-5 text-center text-xs opacity-60 rounded-2xl bg-neutral-50 dark:bg-neutral-800/40 border border-dashed border-neutral-200 dark:border-neutral-700">
+              Belum ada aktivitas pemberian makan tercatat. Beri centang pada jadwal makan hari ini untuk mencatat log bersama keluarga.
             </div>
-          ))}
+          ) : (
+            recentLogs.slice(0, 6).map((log) => {
+              const isSecurity = log.mealId === 'security' || log.mealTitle.includes('PIN');
+              if (isSecurity) {
+                return (
+                  <div
+                    key={log.id}
+                    className="p-3 rounded-2xl bg-red-500/5 dark:bg-red-500/10 border border-red-500/25 flex items-center justify-between text-xs"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                      <div className="truncate">
+                        <span className="font-bold text-red-600 dark:text-red-400">{log.fedBy}</span>{' '}
+                        <span>{log.note || 'gagal memasukkan PIN Pemilik Utama'}</span>
+                        <span className="opacity-50 text-[11px] ml-2">({log.date} pukul {log.time})</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 shrink-0 ml-2">
+                      PIN Ditolak
+                    </span>
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  key={log.id}
+                  className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200/60 dark:border-neutral-700/60 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                    <div className="truncate">
+                      <span className="font-bold">{log.fedBy}</span> telah memberi makan{' '}
+                      <span className="text-amber-600 dark:text-amber-400 font-semibold">{log.mealTitle}</span>
+                      <span className="opacity-50 text-[11px] ml-2">({log.date} pukul {log.time})</span>
+                    </div>
+                  </div>
+                  <span className="text-[11px] opacity-60 shrink-0 ml-2">Dry {log.dryFoodG}g + Wet {log.wetFoodG}g</span>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -420,7 +445,7 @@ export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Contoh: Adik / Nenek / Cat Sitter Budi"
+                  placeholder="Contoh: Nenek / Paman / Sitter Budi"
                   required
                   className="w-full p-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 font-medium"
                 />
@@ -428,13 +453,15 @@ export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
 
               <div>
                 <label className="font-semibold block mb-1">Peran / Hubungan:</label>
-                <input
-                  type="text"
+                <select
+                  id="select-member-role"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  placeholder="Contoh: Keluarga / Pengasuh Sementara"
-                  className="w-full p-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800"
-                />
+                  className="w-full p-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 font-medium cursor-pointer"
+                >
+                  <option value="Keluarga">Keluarga</option>
+                  <option value="Tamu">Tamu</option>
+                </select>
               </div>
 
               <div>

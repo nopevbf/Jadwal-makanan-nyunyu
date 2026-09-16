@@ -271,34 +271,36 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
       }`}>
         
         {/* Top Header Card */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-start gap-3">
-            <div className="text-3xl select-none">✨</div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-display text-white">
-                  Jadwal Makan <span className="text-[#f5d0a9]">Nyunyu</span>
-                </h1>
-                <Heart className="w-5 h-5 text-rose-400 fill-rose-400" />
-              </div>
-              <div className="inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-full bg-neutral-800/90 border border-neutral-700 text-xs text-neutral-300">
-                <span>Kitten {profile.ageMonths} bulan</span>
-                <span>•</span>
-                <span>±{profile.weightKg.toFixed(1)} kg</span>
-                <span>•</span>
-                <span className="text-amber-300">Dry food lebih banyak</span>
-              </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6">
+          <div className="w-full sm:w-auto">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl sm:text-3xl select-none shrink-0">✨</span>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-display text-white">
+                Jadwal Makan <span className="text-[#f5d0a9]">Nyunyu</span>
+              </h1>
+              <Heart className="w-5 h-5 text-rose-400 fill-rose-400 shrink-0" />
+            </div>
+
+            {/* Profile Info Badge (Badge 1) */}
+            <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 mt-2.5 px-3.5 py-2.5 sm:py-1 rounded-2xl sm:rounded-full bg-neutral-800/90 border border-neutral-700 text-xs text-neutral-300">
+              <span className="font-medium">Kitten {profile.ageMonths} bulan</span>
+              <span className="text-neutral-500">•</span>
+              <span className="font-medium">±{profile.weightKg.toFixed(1)} kg</span>
+              <span className="text-neutral-500">•</span>
+              <span className="text-amber-300 font-semibold">
+                {profile.foodPreference === 'more_dry' ? 'Dry food lebih banyak' : profile.foodPreference === 'more_wet' ? 'Wet food lebih banyak' : 'Porsi seimbang'}
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-center">
-            {/* Cute Kitten illustration badge */}
-            <div className="flex items-center gap-2 bg-neutral-800/80 px-3.5 py-2 rounded-2xl border border-neutral-700">
-              <span className="text-2xl select-none">🐾</span>
-              <div className="text-right">
-                <div className="text-[11px] text-[#f5d0a9] font-bold">Tumbuh Aktif & Sehat</div>
-                <div className="text-[10px] text-neutral-400">Happy Kitten Life ♡</div>
+          {/* Cute Kitten illustration badge (Badge 2) */}
+          <div className="w-full sm:w-auto flex items-center self-stretch sm:self-center">
+            <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3 bg-neutral-800/80 px-3.5 py-2.5 sm:py-2 rounded-2xl border border-neutral-700">
+              <div className="flex items-center gap-2">
+                <span className="text-xl sm:text-2xl select-none">🐾</span>
+                <div className="text-[12px] sm:text-[11px] text-[#f5d0a9] font-bold">Tumbuh Aktif & Sehat</div>
               </div>
+              <div className="text-[11px] sm:text-[10px] text-neutral-400 text-right">Happy Kitten Life ♡</div>
             </div>
           </div>
         </div>
@@ -713,52 +715,63 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
               <p className="text-xs opacity-60">Log pemantauan asupan makan dan nafsu makan Nyunyu</p>
             </div>
           </div>
-          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
-            {feedingLogs.length} Catatan
-          </span>
+          {(() => {
+            const mealLogs = feedingLogs.filter((l) => l.mealId !== 'security');
+            return (
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                {mealLogs.length} Catatan
+              </span>
+            );
+          })()}
         </div>
 
-        {feedingLogs.length === 0 ? (
-          <div className="p-6 text-center text-xs opacity-60">
-            Belum ada log pemberian makan. Beri centang pada jadwal di atas untuk mulai mencatat.
-          </div>
-        ) : (
-          <div className="space-y-2.5">
-            {feedingLogs.slice(0, 6).map((log) => (
-              <div
-                key={log.id}
-                className="flex items-center justify-between p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200/80 dark:border-neutral-700/60 text-xs"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center font-bold text-xs">
-                    {log.mealTitle[0] || 'M'}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold">{log.mealTitle}</span>
-                      <span className="opacity-50 text-[11px]">({log.date} {log.time})</span>
-                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        {log.catMood === 'lahap' ? 'Lahap' : log.catMood === 'sisa_sedikit' ? 'Sisa Sedikit' : log.catMood}
-                      </span>
-                    </div>
-                    <div className="opacity-75 text-[11px] mt-0.5">
-                      Dry: {log.dryFoodG}g • Wet: {log.wetFoodG}g • Diberi oleh: <span className="font-semibold">{log.fedBy}</span>
-                      {log.note && <span className="italic"> — "{log.note}"</span>}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => onDeleteFeedingLog(log.id)}
-                  className="opacity-40 hover:opacity-100 hover:text-red-500 text-xs p-1"
-                  title="Hapus catatan"
-                >
-                  ✕
-                </button>
+        {(() => {
+          const mealLogs = feedingLogs.filter((l) => l.mealId !== 'security');
+          if (mealLogs.length === 0) {
+            return (
+              <div className="p-6 text-center text-xs opacity-60">
+                Belum ada log pemberian makan. Beri centang pada jadwal di atas untuk mulai mencatat.
               </div>
-            ))}
-          </div>
-        )}
+            );
+          }
+          return (
+            <div className="space-y-2.5">
+              {mealLogs.slice(0, 6).map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-center justify-between p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200/80 dark:border-neutral-700/60 text-xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center font-bold text-xs">
+                      {log.mealTitle[0] || 'M'}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold">{log.mealTitle}</span>
+                        <span className="opacity-50 text-[11px]">({log.date} {log.time})</span>
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                          {log.catMood === 'lahap' ? 'Lahap' : log.catMood === 'sisa_sedikit' ? 'Sisa Sedikit' : log.catMood}
+                        </span>
+                      </div>
+                      <div className="opacity-75 text-[11px] mt-0.5">
+                        Dry: {log.dryFoodG}g • Wet: {log.wetFoodG}g • Diberi oleh: <span className="font-semibold">{log.fedBy}</span>
+                        {log.note && <span className="italic"> — "{log.note}"</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => onDeleteFeedingLog(log.id)}
+                    className="opacity-40 hover:opacity-100 hover:text-red-500 text-xs p-1"
+                    title="Hapus catatan"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
     </div>

@@ -41,7 +41,7 @@ export interface FeedingLogEntry {
   id: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
-  mealId: MealTimeId | 'ekstra';
+  mealId: MealTimeId | 'ekstra' | 'security';
   mealTitle: string;
   dryFoodG: number;
   wetFoodG: number;
