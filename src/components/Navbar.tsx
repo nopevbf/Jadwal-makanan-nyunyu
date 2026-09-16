@@ -263,7 +263,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
                 title={
                   currentUser
-                    ? `Cloud Real-time Aktif (${currentUser.displayName || currentUser.email}). Klik untuk opsi putuskan sinkronisasi.`
+                    ? 'Cloud Real-time Aktif (Tersambung). Klik untuk opsi keluar.'
                     : 'Hubungkan akun Google agar data tersinkron otomatis antar HP'
                 }
               >
@@ -274,9 +274,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
                     <Cloud className="w-3.5 h-3.5 shrink-0" />
-                    <span className="font-medium text-[11px] truncate max-w-[85px] sm:max-w-[110px]">
-                      {currentUser.displayName || currentUser.email?.split('@')[0]}
-                    </span>
                   </>
                 ) : (
                   <>
