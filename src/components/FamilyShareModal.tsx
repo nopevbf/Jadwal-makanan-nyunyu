@@ -376,8 +376,31 @@ export const FamilyShareModal: React.FC<FamilyShareModalProps> = ({
             </div>
           ) : (
             recentLogs.slice(0, 6).map((log) => {
-              const isSecurity = log.mealId === 'security' || log.mealTitle.includes('PIN');
-              if (isSecurity) {
+              const isImpostor = log.fedBy === 'Impostor' || log.mealTitle.includes('Akses Tanpa Sinkronisasi');
+              const isPinSecurity = !isImpostor && (log.mealId === 'security' || log.mealTitle.includes('PIN'));
+
+              if (isImpostor) {
+                return (
+                  <div
+                    key={log.id}
+                    className="p-3 rounded-2xl bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/30 flex items-center justify-between text-xs"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />
+                      <div className="truncate">
+                        <span className="font-bold text-blue-600 dark:text-blue-400">{log.fedBy}</span>{' '}
+                        <span>{log.note || 'membatalkan login cloud, dialihkan ke akses Tamu'}</span>
+                        <span className="opacity-50 text-[11px] ml-2">({log.date} pukul {log.time})</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 shrink-0 ml-2">
+                      Akses Tamu
+                    </span>
+                  </div>
+                );
+              }
+
+              if (isPinSecurity) {
                 return (
                   <div
                     key={log.id}

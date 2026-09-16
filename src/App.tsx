@@ -60,7 +60,6 @@ import {
   saveFamilyMemberToCloud,
   deleteFamilyMemberFromCloud,
   seedInitialFirestoreDataIfEmpty,
-  cleanOldFirestoreData,
 } from './services/firestoreSync';
 
 export default function App() {
@@ -231,7 +230,7 @@ export default function App() {
         const parsed: FamilyMember[] = JSON.parse(saved);
         const hasKaAji = parsed.some((m) => m.name === 'Ka Aji' || m.id === 'ka-aji');
         if (!hasKaAji) {
-          return initialFamilyMembers;
+          return [{ id: 'ka-aji', name: 'Ka Aji', role: 'Pemilik Utama' as const, avatarColor: 'bg-red-500' }, ...parsed];
         }
         return parsed;
       }
@@ -290,8 +289,6 @@ export default function App() {
       setCurrentUser(user);
       if (user) {
         setIsCloudConnected(true);
-        // Clean old Firestore data (feeding logs and old family members)
-        cleanOldFirestoreData().catch((err) => console.warn('Clean Firestore data:', err));
 
         // Seed initial data if the Firestore collections are empty
         seedInitialFirestoreDataIfEmpty({
@@ -301,8 +298,13 @@ export default function App() {
           weightLogs: initialWeightLogs,
           medications: initialMedications,
           healthRecords: initialHealthRecords,
-          familyMembers: initialFamilyMembers,
+          familyMembers,
         }).catch((err) => console.warn('Seed initial check:', err));
+
+        // Ensure all local family members are synced to cloud
+        familyMembers.forEach((m) => {
+          saveFamilyMemberToCloud(m).catch(() => {});
+        });
       }
     });
 
@@ -350,11 +352,33 @@ export default function App() {
     });
 
     const unsubFamily = subscribeFamilyMembers((cloudMembers) => {
-      if (Array.isArray(cloudMembers) && cloudMembers.length > 0) {
-        setFamilyMembers(cloudMembers);
+      if (Array.isArray(cloudMembers)) {
+        setFamilyMembers((prevMembers) => {
+          const map = new Map<string, FamilyMember>();
+          // 1. Keep all existing local members
+          prevMembers.forEach((m) => map.set(m.id, m));
+          // 2. Merge cloud members
+          cloudMembers.forEach((m) => map.set(m.id, m));
+
+          // Ensure Ka Aji is present
+          if (!map.has('ka-aji') && !Array.from(map.values()).some((m) => m.name === 'Ka Aji')) {
+            map.set('ka-aji', { id: 'ka-aji', name: 'Ka Aji', role: 'Pemilik Utama', avatarColor: 'bg-red-500' });
+          }
+
+          const finalMembers = Array.from(map.values());
+
+          // Sync any members that are present locally but missing in Firestore
+          cloudMembers.forEach((cm) => map.delete(cm.id));
+          map.forEach((localOnlyMember) => {
+            saveFamilyMemberToCloud(localOnlyMember).catch(() => {});
+          });
+
+          return finalMembers;
+        });
+
         setActiveMember((prev) => {
           const match = cloudMembers.find((m) => m.id === prev.id);
-          return match || cloudMembers[0];
+          return match || prev;
         });
       }
     });
@@ -372,9 +396,10 @@ export default function App() {
     };
   }, []);
 
-  const handleLoginWithGoogle = async () => {
+  const handleLoginWithGoogle = async (): Promise<boolean> => {
     try {
-      await loginWithGoogle();
+      const user = await loginWithGoogle();
+      return !!user;
     } catch (err: any) {
       if (
         err?.code === 'auth/popup-closed-by-user' ||
@@ -382,7 +407,7 @@ export default function App() {
         err?.code === 'auth/popup-blocked' ||
         err?.message?.includes('popup-closed-by-user')
       ) {
-        return;
+        return false;
       }
       if (err?.code === 'auth/unauthorized-domain' || err?.message?.includes('unauthorized-domain')) {
         alert(
@@ -393,10 +418,59 @@ export default function App() {
           '3. Klik "Add domain" lalu masukkan: nyunyu.vercel.app\n' +
           '4. Simpan, lalu coba klik login lagi.'
         );
-        return;
+        return false;
       }
       alert('Gagal menghubungkan Google: ' + (err?.message || err));
+      return false;
     }
+  };
+
+  const handleAssignImpostor = () => {
+    let impostor = familyMembers.find(
+      (m) => m.name.toLowerCase() === 'impostor'
+    );
+
+    if (!impostor) {
+      impostor = {
+        id: 'impostor',
+        name: 'Impostor',
+        role: 'Tamu',
+        avatarColor: 'bg-blue-500',
+      };
+      setFamilyMembers((prev) => [...prev, impostor!]);
+      saveFamilyMemberToCloud(impostor).catch((err) => console.warn('Cloud sync error:', err));
+    }
+
+    setActiveMember(impostor);
+    try {
+      sessionStorage.setItem('nyunyu_session_access_selected', impostor.id);
+    } catch {}
+    setIsInitialAccessModalOpen(false);
+
+    setToastNotification({
+      message: 'Akses Dialihkan ke Tamu: Impostor',
+      description: 'Login cloud dibatalkan, dialihkan ke akses tamu.',
+    });
+
+    // Record to "Aktivitas Terkini Keluarga untuk Nyunyu"
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const impostorLog: FeedingLogEntry = {
+      id: `sec-${Date.now()}`,
+      date: todayStr,
+      time: timeStr,
+      mealId: 'security',
+      mealTitle: 'Akses Tanpa Sinkronisasi Cloud',
+      dryFoodG: 0,
+      wetFoodG: 0,
+      fedBy: 'Impostor',
+      catMood: 'biasa',
+      note: 'Membatalkan login cloud, dialihkan ke akses Tamu',
+    };
+
+    setFeedingLogs((prev) => [impostorLog, ...prev]);
+    addFeedingLogToCloud(impostorLog).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   const handleLogoutUser = () => {
@@ -598,7 +672,13 @@ export default function App() {
       ...newMem,
       id: `fam-${Date.now()}`,
     };
-    setFamilyMembers((prev) => [...prev, item]);
+    setFamilyMembers((prev) => {
+      const next = [...prev, item];
+      try {
+        localStorage.setItem('nyunyu_family_members', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
     saveFamilyMemberToCloud(item).catch((err) => console.warn('Cloud sync error:', err));
     return item;
   };
@@ -867,6 +947,9 @@ export default function App() {
         onSelectMember={handleSelectInitialMember}
         onAddMember={handleAddFamilyMember}
         darkMode={darkMode}
+        currentUser={currentUser}
+        onLoginWithGoogle={handleLoginWithGoogle}
+        onAssignImpostor={handleAssignImpostor}
       />
 
       {/* Modal Verifikasi PIN 6-Digit untuk Akses Pemilik Utama */}

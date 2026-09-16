@@ -300,7 +300,11 @@ export function subscribeFamilyMembers(
 }
 
 export async function saveFamilyMemberToCloud(member: FamilyMember): Promise<void> {
-  if (!auth.currentUser) return;
+  if (!auth.currentUser) {
+    // Wait briefly if auth is currently initializing
+    await new Promise((res) => setTimeout(res, 300));
+    if (!auth.currentUser) return;
+  }
   const path = `family_members/${member.id}`;
   try {
     await setDoc(doc(db, 'family_members', member.id), member);
@@ -359,33 +363,8 @@ export async function seedInitialFirestoreDataIfEmpty(defaults: {
   }
 }
 
-// Clean old feeding logs and reset family members to Ka Aji as primary owner in Firestore
+// Clean old Firestore data is no longer active to prevent data loss on refresh
 export async function cleanOldFirestoreData(): Promise<void> {
-  if (!auth.currentUser) return;
-  try {
-    // 1. Delete all documents in feeding_logs collection
-    const feedingSnap = await getDocs(collection(db, 'feeding_logs'));
-    for (const d of feedingSnap.docs) {
-      await deleteDoc(doc(db, 'feeding_logs', d.id));
-    }
-
-    // 2. Delete old family members not named Ka Aji
-    const membersSnap = await getDocs(collection(db, 'family_members'));
-    for (const d of membersSnap.docs) {
-      if (d.id !== 'ka-aji') {
-        await deleteDoc(doc(db, 'family_members', d.id));
-      }
-    }
-
-    // 3. Ensure Ka Aji is saved as Pemilik Utama
-    await setDoc(doc(db, 'family_members', 'ka-aji'), {
-      id: 'ka-aji',
-      name: 'Ka Aji',
-      role: 'Pemilik Utama',
-      avatarColor: 'bg-red-500',
-    });
-  } catch (err) {
-    console.warn('Clean old Firestore data error:', err);
-  }
+  // No-op: Data persistence is preserved across page refreshes
 }
 
