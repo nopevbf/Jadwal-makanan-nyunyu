@@ -252,8 +252,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Navigation Tabs (Header Tab Strip) */}
-          <nav className="flex items-center gap-1 sm:gap-2 mt-2 sm:mt-3 overflow-x-auto no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0 pb-0.5 text-xs sm:text-sm font-medium">
+          {/* Navigation Tabs (Header Tab Strip - Hidden on mobile, visible on tablet/desktop) */}
+          <nav className="hidden sm:flex items-center gap-1 sm:gap-2 mt-2 sm:mt-3 overflow-x-auto no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0 pb-0.5 text-xs sm:text-sm font-medium">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
