@@ -125,7 +125,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="font-bold text-xs sm:text-sm tracking-tight text-amber-500 dark:text-amber-400 font-display truncate">
                     {profile.name}
                   </span>
-                  <span className="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-300 whitespace-nowrap">
+                  <span 
+                    className="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-300 whitespace-nowrap"
+                    title={`Umur ${profile.name}: ${profile.ageMonths} bulan (otomatis bertambah tiap ganti bulan)`}
+                  >
                     {profile.ageMonths} bln
                   </span>
                 </div>

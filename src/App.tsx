@@ -31,6 +31,7 @@ import { InitialAccessModal } from './components/InitialAccessModal';
 import { OwnerPinModal } from './components/OwnerPinModal';
 import { ToastNotification } from './components/ToastNotification';
 import { playCatBellChime } from './utils/audio';
+import { getDynamicProfile } from './utils/catAge';
 import {
   auth,
   onAuthStateChanged,
@@ -89,11 +90,23 @@ export default function App() {
   const [profile, setProfile] = useState<CatProfile>(() => {
     try {
       const saved = localStorage.getItem('nyunyu_cat_profile');
-      return saved ? JSON.parse(saved) : initialCatProfile;
+      const base = saved ? JSON.parse(saved) : initialCatProfile;
+      return getDynamicProfile(base);
     } catch {
-      return initialCatProfile;
+      return getDynamicProfile(initialCatProfile);
     }
   });
+
+  // Dynamically ensure age increases on month changes
+  useEffect(() => {
+    setProfile((prev) => {
+      const dynamic = getDynamicProfile(prev);
+      if (dynamic.ageMonths !== prev.ageMonths || dynamic.birthDate !== prev.birthDate) {
+        return dynamic;
+      }
+      return prev;
+    });
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('nyunyu_cat_profile', JSON.stringify(profile));
@@ -337,7 +350,7 @@ export default function App() {
     // 3. Real-time Firestore sync subscriptions across devices
     const unsubProfile = subscribeCatProfile((cloudProfile) => {
       if (cloudProfile && cloudProfile.name) {
-        setProfile(cloudProfile);
+        setProfile(getDynamicProfile(cloudProfile));
       }
     });
 
@@ -838,8 +851,9 @@ export default function App() {
   };
 
   const handleSaveProfile = (updated: CatProfile) => {
-    setProfile(updated);
-    saveCatProfileToCloud(updated).catch((err) => console.warn('Cloud sync error:', err));
+    const dynamic = getDynamicProfile(updated);
+    setProfile(dynamic);
+    saveCatProfileToCloud(dynamic).catch((err) => console.warn('Cloud sync error:', err));
   };
 
   const handleUpdateSchedules = (updated: MealScheduleItem[]) => {

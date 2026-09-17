@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { CatProfile, MealScheduleItem } from '../types';
 import { calculateCatPortions } from '../utils/nutritionCalc';
-import { Sliders, Sparkles, Scale, Calendar, Info, Heart } from 'lucide-react';
+import { calculateAgeMonths, calculateBirthDateFromAge } from '../utils/catAge';
+import { Sliders, Sparkles, Scale, Calendar, Info, Heart, Cake } from 'lucide-react';
 
 interface CatProfileModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const CatProfileModal: React.FC<CatProfileModalProps> = ({
   if (!isOpen) return null;
 
   const [name, setName] = useState(profile.name);
+  const [birthDate, setBirthDate] = useState<string>(profile.birthDate || '2026-03-15');
   const [ageMonths, setAgeMonths] = useState<number | string>(profile.ageMonths);
   const [weightKg, setWeightKg] = useState<number | string>(profile.weightKg);
   const [breed, setBreed] = useState(profile.breed);
@@ -32,6 +34,23 @@ export const CatProfileModal: React.FC<CatProfileModalProps> = ({
   const [dryG, setDryG] = useState<number | string>(profile.targetDailyDryG);
   const [wetG, setWetG] = useState<number | string>(profile.targetDailyWetG);
   const [specialNotes, setSpecialNotes] = useState(profile.specialNotes || '');
+
+  const handleBirthDateChange = (newBirthDate: string) => {
+    setBirthDate(newBirthDate);
+    if (newBirthDate) {
+      const calculated = calculateAgeMonths(newBirthDate);
+      setAgeMonths(calculated);
+    }
+  };
+
+  const handleAgeMonthsChange = (newAge: string) => {
+    setAgeMonths(newAge);
+    const parsed = parseInt(newAge, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      const derivedBirthDate = calculateBirthDateFromAge(parsed);
+      setBirthDate(derivedBirthDate);
+    }
+  };
 
   const numericWeight = typeof weightKg === 'number' ? weightKg : parseFloat(weightKg) || 0;
   const numericAge = typeof ageMonths === 'number' ? ageMonths : parseInt(ageMonths as string, 10) || 1;
@@ -50,6 +69,7 @@ export const CatProfileModal: React.FC<CatProfileModalProps> = ({
     const updatedProfile: CatProfile = {
       ...profile,
       name: name.trim() || 'Nyunyu',
+      birthDate,
       ageMonths: Number(ageMonths),
       weightKg: Number(weightKg),
       breed: breed.trim(),
@@ -141,44 +161,70 @@ export const CatProfileModal: React.FC<CatProfileModalProps> = ({
               </div>
             </div>
 
-            {/* Age & Weight Inputs */}
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-              <div>
-                <label className="font-bold text-amber-700 dark:text-amber-400 block mb-1 flex items-center gap-1 text-[11px] sm:text-xs">
-                  <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">Umur (Bulan):</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="240"
-                  value={ageMonths}
-                  onChange={(e) => setAgeMonths(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 sm:py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-amber-500/30 outline-none"
-                />
-                <span className="text-[10px] opacity-70 mt-1 block truncate">
-                  {numericAge < 12 ? 'Kitten (Tumbuh aktif)' : 'Kucing Dewasa'}
-                </span>
+            {/* Age, BirthDate & Weight Inputs */}
+            <div className="p-3 sm:p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                <div>
+                  <label className="font-bold text-amber-700 dark:text-amber-400 block mb-1 flex items-center gap-1 text-[11px] sm:text-xs">
+                    <Cake className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Tgl Lahir (Estimasi):</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={birthDate}
+                    onChange={(e) => handleBirthDateChange(e.target.value)}
+                    className="w-full px-2.5 py-2 sm:py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 font-semibold text-xs text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-amber-500/30 outline-none"
+                  />
+                  <span className="text-[10px] opacity-70 mt-1 block truncate">
+                    Patokan hitung umur
+                  </span>
+                </div>
+
+                <div>
+                  <label className="font-bold text-amber-700 dark:text-amber-400 block mb-1 flex items-center gap-1 text-[11px] sm:text-xs">
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Umur (Bulan):</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="240"
+                    value={ageMonths}
+                    onChange={(e) => handleAgeMonthsChange(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 sm:py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-amber-500/30 outline-none"
+                  />
+                  <span className="text-[10px] opacity-70 mt-1 block truncate">
+                    {numericAge < 12 ? 'Kitten (Tumbuh aktif)' : 'Kucing Dewasa'}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="font-bold text-amber-700 dark:text-amber-400 block mb-1 flex items-center gap-1 text-[11px] sm:text-xs">
+                    <Scale className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Berat (kg):</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.05"
+                    min="0.3"
+                    max="15"
+                    value={weightKg}
+                    onChange={(e) => setWeightKg(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 sm:py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-amber-500/30 outline-none"
+                  />
+                  <span className="text-[10px] opacity-70 mt-1 block truncate">
+                    Ref: ~{numericWeight.toFixed(1)} kg
+                  </span>
+                </div>
               </div>
 
-              <div>
-                <label className="font-bold text-amber-700 dark:text-amber-400 block mb-1 flex items-center gap-1 text-[11px] sm:text-xs">
-                  <Scale className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">Berat (kg):</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.05"
-                  min="0.3"
-                  max="15"
-                  value={weightKg}
-                  onChange={(e) => setWeightKg(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 sm:py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-amber-500/30 outline-none"
-                />
-                <span className="text-[10px] opacity-70 mt-1 block truncate">
-                  Ref: ~{numericWeight.toFixed(1)} kg
+              {/* Dynamic Age Explanation Note */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[11px] border border-amber-500/25">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span>
+                  <strong>Umur Dinamis:</strong> Umur {name} otomatis bertambah 1 bulan setiap pergantian bulan kalender.
                 </span>
               </div>
             </div>

@@ -336,7 +336,9 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
 
             {/* Profile Info Badge (Badge 1) */}
             <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 mt-2.5 px-3.5 py-2.5 sm:py-1 rounded-2xl sm:rounded-full bg-neutral-800/90 border border-neutral-700 text-xs text-neutral-300">
-              <span className="font-medium">Kitten {profile.ageMonths} bulan</span>
+              <span className="font-medium">
+                {profile.ageMonths < 12 ? `Kitten ${profile.ageMonths} bulan` : `Kucing Dewasa ${profile.ageMonths} bulan`}
+              </span>
               <span className="text-neutral-500">•</span>
               <span className="font-medium">±{profile.weightKg.toFixed(1)} kg</span>
               <span className="text-neutral-500">•</span>

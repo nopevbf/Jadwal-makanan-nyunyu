@@ -36,7 +36,7 @@ export const MedicalExportModal: React.FC<MedicalExportModalProps> = ({
     txt += `------------------------------------\n`;
     txt += `🐾 PROFIL PASIEN:\n`;
     txt += `• Nama: ${profile.name}\n`;
-    txt += `• Usia: ${profile.ageMonths} Bulan (Kitten)\n`;
+    txt += `• Usia: ${profile.ageMonths} Bulan (${profile.ageMonths < 12 ? 'Kitten' : 'Dewasa'})\n`;
     txt += `• Berat Badan Terkini: ${latestWeight.toFixed(2)} kg\n`;
     txt += `• Jenis Kelamin: ${profile.gender === 'betina' ? 'Betina' : 'Jantan'}\n`;
     txt += `• Ras/Ciri: ${profile.breed}\n\n`;
@@ -149,7 +149,9 @@ export const MedicalExportModal: React.FC<MedicalExportModalProps> = ({
             </div>
             <div>
               <span className="text-neutral-500 block text-[10px] uppercase font-bold">Usia & Status</span>
-              <strong className="text-sm font-bold">{profile.ageMonths} Bulan (Kitten)</strong>
+              <strong className="text-sm font-bold">
+                {profile.ageMonths} Bulan ({profile.ageMonths < 12 ? 'Kitten' : 'Dewasa'})
+              </strong>
             </div>
             <div>
               <span className="text-neutral-500 block text-[10px] uppercase font-bold">Berat Terkini</span>
