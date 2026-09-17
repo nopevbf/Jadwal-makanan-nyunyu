@@ -31,7 +31,7 @@ export const WeightNutritionStats: React.FC<WeightNutritionStatsProps> = ({
   darkMode,
 }) => {
   const [showAddWeightModal, setShowAddWeightModal] = useState(false);
-  const [newWeight, setNewWeight] = useState<number>(profile.weightKg);
+  const [newWeight, setNewWeight] = useState<string>(profile.weightKg ? profile.weightKg.toString() : '2.0');
   const [newDate, setNewDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [newNote, setNewNote] = useState<string>('');
 
@@ -92,11 +92,12 @@ export const WeightNutritionStats: React.FC<WeightNutritionStatsProps> = ({
 
   const handleSaveWeight = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newWeight || isNaN(newWeight)) return;
+    const parsedWeight = parseFloat(newWeight);
+    if (!parsedWeight || isNaN(parsedWeight) || parsedWeight <= 0) return;
 
     onAddWeightLog({
       date: newDate,
-      weightKg: Number(newWeight),
+      weightKg: parsedWeight,
       ageMonthsAtRecord: profile.ageMonths,
       note: newNote.trim() || undefined,
     });
@@ -202,7 +203,11 @@ export const WeightNutritionStats: React.FC<WeightNutritionStatsProps> = ({
           </div>
 
           <button
-            onClick={() => setShowAddWeightModal(true)}
+            onClick={() => {
+              setNewWeight(latestWeight ? latestWeight.toString() : '2.0');
+              setNewDate(new Date().toISOString().split('T')[0]);
+              setShowAddWeightModal(true);
+            }}
             id="btn-add-weight-entry"
             className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-1.5 self-start sm:self-center transition-colors shadow-sm"
           >
@@ -431,10 +436,11 @@ export const WeightNutritionStats: React.FC<WeightNutritionStatsProps> = ({
                   <input
                     type="number"
                     step="0.01"
-                    min="0.3"
+                    min="0.1"
                     max="15"
                     value={newWeight}
-                    onChange={(e) => setNewWeight(Number(e.target.value))}
+                    onChange={(e) => setNewWeight(e.target.value)}
+                    placeholder="Contoh: 2.15"
                     required
                     className="w-full text-base font-bold p-2.5 pl-3 pr-12 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800"
                   />

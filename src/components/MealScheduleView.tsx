@@ -77,6 +77,34 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
     return () => clearInterval(timer);
   }, []);
 
+  // Helper to get effective meal record for today from feedingLogs (uses latest log if multiple exist)
+  const getMealEffectiveRecord = (mealId: string, mealTitle: string) => {
+    const matchingLogs = feedingLogs
+      .filter((l) => l.date === effectiveDateStr && l.mealId !== 'security')
+      .filter(
+        (l) =>
+          l.mealId === mealId ||
+          (l.mealTitle && l.mealTitle.toLowerCase().includes(mealTitle.toLowerCase()))
+      )
+      .sort((a, b) => (b.time && a.time ? b.time.localeCompare(a.time) : 0));
+
+    if (matchingLogs.length > 0) {
+      const latest = matchingLogs[0];
+      return {
+        mealId: mealId as any,
+        isDone: true,
+        doneTime: latest.time,
+        fedBy: latest.fedBy,
+        actualDryG: latest.dryFoodG,
+        actualWetG: latest.wetFoodG,
+        mood: latest.catMood,
+        note: latest.note,
+        allLogsCount: matchingLogs.length,
+      };
+    }
+    return todayRecords[mealId] || null;
+  };
+
   // Calculate next meal countdown
   const getNextMealInfo = () => {
     const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
@@ -91,7 +119,8 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
     for (const meal of sorted) {
       const [h, m] = meal.time.split(':').map(Number);
       const mealMinutes = h * 60 + m;
-      const isDone = todayRecords[meal.id]?.isDone;
+      const rec = getMealEffectiveRecord(meal.id, meal.title);
+      const isDone = Boolean(rec?.isDone);
 
       if (!isDone) {
         if (mealMinutes > nowMinutes) {
@@ -117,7 +146,7 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
     }
 
     // If all completed or late
-    const allDone = schedules.every((s) => todayRecords[s.id]?.isDone);
+    const allDone = schedules.every((s) => Boolean(getMealEffectiveRecord(s.id, s.title)?.isDone));
     if (allDone) {
       return {
         meal: sorted[0],
@@ -332,8 +361,8 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
         {/* 3 Main Feeding Cards: Pagi, Siang, Malam */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {schedules.map((meal) => {
-            const isDone = todayRecords[meal.id]?.isDone;
-            const record = todayRecords[meal.id];
+            const record = getMealEffectiveRecord(meal.id, meal.title);
+            const isDone = Boolean(record?.isDone);
 
             return (
               <div
@@ -389,7 +418,7 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
                       <span className="text-xs text-neutral-300 font-medium">Dry food:</span>
                     </div>
                     <span className="text-sm font-bold text-white tracking-wide">
-                      {meal.dryFoodRange}
+                      {isDone && record?.actualDryG !== undefined ? `${record.actualDryG} g` : meal.dryFoodRange}
                     </span>
                   </div>
 
@@ -402,7 +431,7 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
                       <span className="text-xs text-neutral-300 font-medium">Wet food:</span>
                     </div>
                     <span className="text-sm font-bold text-white tracking-wide">
-                      {meal.wetFoodRange}
+                      {isDone && record?.actualWetG !== undefined ? `${record.actualWetG} g` : meal.wetFoodRange}
                     </span>
                   </div>
                 </div>
@@ -415,9 +444,18 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
                         <CheckCircle2 className="w-4 h-4" />
                         <span>Selesai ({record?.doneTime || 'Hari ini'})</span>
                       </div>
-                      <span className="text-[11px] text-neutral-400">
-                        Oleh: <strong className="text-neutral-200">{record?.fedBy || activeMember.name}</strong>
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-neutral-400">
+                          Oleh: <strong className="text-neutral-200">{record?.fedBy || activeMember.name}</strong>
+                        </span>
+                        <button
+                          onClick={() => handleOpenQuickLog(meal)}
+                          title="Beri makan lagi atau update porsi oleh anggota lain"
+                          className="text-[10px] px-2 py-0.5 rounded-lg bg-neutral-700/80 hover:bg-neutral-600 text-neutral-300 font-semibold transition-colors"
+                        >
+                          Update
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-center justify-between gap-2">

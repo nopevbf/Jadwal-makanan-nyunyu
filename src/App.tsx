@@ -589,14 +589,18 @@ export default function App() {
     const meal = schedules.find((s) => s.id === mealId);
     const mealTitle = meal ? meal.title : mealId;
 
-    if (isCurrentlyDone) {
+    if (isCurrentlyDone && !customDetails) {
       // Uncheck
       const updated = { ...todayRecords };
       delete updated[mealId];
       setTodayRecords(updated);
       saveTodayFeedingToCloud(todayStr, updated).catch((err) => console.warn('Cloud sync error:', err));
+      // Also remove today's feeding logs for this meal
+      setFeedingLogs((prev) =>
+        prev.filter((l) => !(l.date === todayStr && (l.mealId === mealId || l.mealTitle === mealTitle)))
+      );
     } else {
-      // Mark done
+      // Mark done or update with new feeder
       const actualDry = customDetails?.actualDry ?? meal?.dryFoodG ?? 16;
       const actualWet = customDetails?.actualWet ?? meal?.wetFoodG ?? 18;
       const mood = customDetails?.mood ?? 'lahap';
@@ -644,10 +648,57 @@ export default function App() {
     };
     setFeedingLogs((prev) => [newLog, ...prev]);
     addFeedingLogToCloud(newLog).catch((err) => console.warn('Cloud sync error:', err));
+
+    // If logged for today and matches a scheduled meal, update todayRecords as well
+    if (newLog.date === currentDateStr && newLog.mealId && newLog.mealId !== 'ekstra') {
+      const updated: Record<string, DailyFeedingRecord> = {
+        ...todayRecords,
+        [newLog.mealId]: {
+          mealId: newLog.mealId as any,
+          isDone: true,
+          doneTime: newLog.time,
+          fedBy: newLog.fedBy,
+          actualDryG: newLog.dryFoodG,
+          actualWetG: newLog.wetFoodG,
+          mood: newLog.catMood,
+          note: newLog.note,
+        },
+      };
+      setTodayRecords(updated);
+      saveTodayFeedingToCloud(currentDateStr, updated).catch((err) => console.warn('Cloud sync error:', err));
+    }
   };
 
   const handleDeleteFeedingLog = (id: string) => {
-    setFeedingLogs((prev) => prev.filter((l) => l.id !== id));
+    const target = feedingLogs.find((l) => l.id === id);
+    const remainingLogs = feedingLogs.filter((l) => l.id !== id);
+    setFeedingLogs(remainingLogs);
+
+    if (target && target.date === currentDateStr && target.mealId && target.mealId !== 'ekstra') {
+      const remainingForMeal = remainingLogs.filter(
+        (l) => l.date === currentDateStr && (l.mealId === target.mealId || l.mealTitle === target.mealTitle)
+      );
+      setTodayRecords((prev) => {
+        const copy = { ...prev };
+        if (remainingForMeal.length > 0) {
+          const latest = remainingForMeal[0];
+          copy[target.mealId] = {
+            mealId: target.mealId as any,
+            isDone: true,
+            doneTime: latest.time,
+            fedBy: latest.fedBy,
+            actualDryG: latest.dryFoodG,
+            actualWetG: latest.wetFoodG,
+            mood: latest.catMood,
+            note: latest.note,
+          };
+        } else {
+          delete copy[target.mealId];
+        }
+        saveTodayFeedingToCloud(currentDateStr, copy).catch(() => {});
+        return copy;
+      });
+    }
   };
 
   const handleAddWeightLog = (record: Omit<WeightRecord, 'id'>) => {

@@ -25,16 +25,19 @@ export const CatProfileModal: React.FC<CatProfileModalProps> = ({
   if (!isOpen) return null;
 
   const [name, setName] = useState(profile.name);
-  const [ageMonths, setAgeMonths] = useState(profile.ageMonths);
-  const [weightKg, setWeightKg] = useState(profile.weightKg);
+  const [ageMonths, setAgeMonths] = useState<number | string>(profile.ageMonths);
+  const [weightKg, setWeightKg] = useState<number | string>(profile.weightKg);
   const [breed, setBreed] = useState(profile.breed);
   const [foodPreference, setFoodPreference] = useState(profile.foodPreference);
-  const [dryG, setDryG] = useState(profile.targetDailyDryG);
-  const [wetG, setWetG] = useState(profile.targetDailyWetG);
+  const [dryG, setDryG] = useState<number | string>(profile.targetDailyDryG);
+  const [wetG, setWetG] = useState<number | string>(profile.targetDailyWetG);
   const [specialNotes, setSpecialNotes] = useState(profile.specialNotes || '');
 
+  const numericWeight = typeof weightKg === 'number' ? weightKg : parseFloat(weightKg) || 0;
+  const numericAge = typeof ageMonths === 'number' ? ageMonths : parseInt(ageMonths as string, 10) || 1;
+
   // Calculate recommendation preview based on current input values
-  const recommendation = calculateCatPortions(ageMonths, weightKg, foodPreference);
+  const recommendation = calculateCatPortions(numericAge, numericWeight, foodPreference);
 
   const handleApplyRecommendation = () => {
     setDryG(recommendation.dailyDryG);
@@ -150,12 +153,12 @@ export const CatProfileModal: React.FC<CatProfileModalProps> = ({
                   min="1"
                   max="240"
                   value={ageMonths}
-                  onChange={(e) => setAgeMonths(Number(e.target.value))}
+                  onChange={(e) => setAgeMonths(e.target.value)}
                   required
                   className="w-full px-3 py-2 sm:py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-amber-500/30 outline-none"
                 />
                 <span className="text-[10px] opacity-70 mt-1 block truncate">
-                  {ageMonths < 12 ? 'Kitten (Tumbuh aktif)' : 'Kucing Dewasa'}
+                  {numericAge < 12 ? 'Kitten (Tumbuh aktif)' : 'Kucing Dewasa'}
                 </span>
               </div>
 
@@ -170,12 +173,12 @@ export const CatProfileModal: React.FC<CatProfileModalProps> = ({
                   min="0.3"
                   max="15"
                   value={weightKg}
-                  onChange={(e) => setWeightKg(Number(e.target.value))}
+                  onChange={(e) => setWeightKg(e.target.value)}
                   required
                   className="w-full px-3 py-2 sm:py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 font-bold text-sm sm:text-base text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-amber-500/30 outline-none"
                 />
                 <span className="text-[10px] opacity-70 mt-1 block truncate">
-                  Ref: ~{weightKg.toFixed(1)} kg
+                  Ref: ~{numericWeight.toFixed(1)} kg
                 </span>
               </div>
             </div>
@@ -224,7 +227,7 @@ export const CatProfileModal: React.FC<CatProfileModalProps> = ({
                 </button>
               </div>
               <div className="text-[11px] opacity-80 leading-relaxed">
-                Berdasarkan umur {ageMonths} bulan & {weightKg} kg:
+                Berdasarkan umur {numericAge} bulan & {numericWeight} kg:
                 <strong className="block text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
                   Dry: {recommendation.dailyDryRange} • Wet: {recommendation.dailyWetRange} ({recommendation.totalDailyG})
                 </strong>
@@ -240,11 +243,11 @@ export const CatProfileModal: React.FC<CatProfileModalProps> = ({
                   min="10"
                   max="150"
                   value={dryG}
-                  onChange={(e) => setDryG(Number(e.target.value))}
+                  onChange={(e) => setDryG(e.target.value)}
                   required
                   className="w-full px-3 py-2 sm:py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 font-bold text-sm text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-amber-500/30 outline-none"
                 />
-                <span className="text-[10px] opacity-60 mt-0.5 block">~{Math.round(dryG / 3)}g / makan</span>
+                <span className="text-[10px] opacity-60 mt-0.5 block">~{Math.round((Number(dryG) || 0) / 3)}g / makan</span>
               </div>
 
               <div>
@@ -254,11 +257,11 @@ export const CatProfileModal: React.FC<CatProfileModalProps> = ({
                   min="10"
                   max="250"
                   value={wetG}
-                  onChange={(e) => setWetG(Number(e.target.value))}
+                  onChange={(e) => setWetG(e.target.value)}
                   required
                   className="w-full px-3 py-2 sm:py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 font-bold text-sm text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-amber-500/30 outline-none"
                 />
-                <span className="text-[10px] opacity-60 mt-0.5 block">~{Math.round(wetG / 3)}g / makan</span>
+                <span className="text-[10px] opacity-60 mt-0.5 block">~{Math.round((Number(wetG) || 0) / 3)}g / makan</span>
               </div>
             </div>
 

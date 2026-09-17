@@ -68,42 +68,116 @@ export const DailyFoodIntakeCard: React.FC<DailyFoodIntakeCardProps> = ({
     }
   })();
 
-  // 1. Calculate intake from todayRecords (scheduled meals Pagi, Siang, Malam)
+  // Filter all feeding logs for today from "Riwayat Pemberian Makan"
+  const todayLogs = feedingLogs.filter(
+    (l) => l.date === currentDateStr && l.mealId !== 'security'
+  );
+
+  // Sort today's logs by time descending (newest log first)
+  const sortedTodayLogs = [...todayLogs].sort((a, b) => {
+    if (a.time && b.time && a.time !== b.time) {
+      return b.time.localeCompare(a.time);
+    }
+    return 0;
+  });
+
+  // Calculate intake from scheduled meals (Pagi, Siang, Malam)
+  // When another family member feeds, use the latest data
   let givenDryG = 0;
   let givenWetG = 0;
 
   const sessionStatuses = schedules.map((meal) => {
-    const rec = todayRecords[meal.id];
-    const isDone = Boolean(rec?.isDone);
-    const dry = isDone ? (rec?.actualDryG ?? meal.dryFoodG) : 0;
-    const wet = isDone ? (rec?.actualWetG ?? meal.wetFoodG) : 0;
+    // Check logs from Riwayat Pemberian Makan for this specific meal
+    const matchingLogs = sortedTodayLogs.filter(
+      (l) =>
+        l.mealId === meal.id ||
+        (l.mealTitle && l.mealTitle.toLowerCase().includes(meal.title.toLowerCase()))
+    );
 
-    if (isDone) {
-      givenDryG += dry;
-      givenWetG += wet;
+    if (matchingLogs.length > 0) {
+      // Use the latest log (data yang terbaru)
+      const latestLog = matchingLogs[0];
+      const previousLog = matchingLogs.length > 1 ? matchingLogs[1] : null;
+
+      givenDryG += latestLog.dryFoodG;
+      givenWetG += latestLog.wetFoodG;
+
+      return {
+        id: meal.id,
+        title: meal.title,
+        scheduledTime: meal.time,
+        isDone: true,
+        dryG: latestLog.dryFoodG,
+        wetG: latestLog.wetFoodG,
+        plannedDry: meal.dryFoodRange,
+        plannedWet: meal.wetFoodRange,
+        totalG: latestLog.dryFoodG + latestLog.wetFoodG,
+        fedBy: latestLog.fedBy,
+        doneTime: latestLog.time,
+        mood: latestLog.catMood,
+        note: latestLog.note,
+        isExtra: false,
+        totalLogsForSession: matchingLogs.length,
+        previousFeeder: previousLog ? `${previousLog.fedBy} (${previousLog.time})` : null,
+      };
     }
 
+    // Fallback if recorded in todayRecords
+    const rec = todayRecords[meal.id];
+    if (rec?.isDone) {
+      const dry = rec?.actualDryG ?? meal.dryFoodG;
+      const wet = rec?.actualWetG ?? meal.wetFoodG;
+      givenDryG += dry;
+      givenWetG += wet;
+
+      return {
+        id: meal.id,
+        title: meal.title,
+        scheduledTime: meal.time,
+        isDone: true,
+        dryG: dry,
+        wetG: wet,
+        plannedDry: meal.dryFoodRange,
+        plannedWet: meal.wetFoodRange,
+        totalG: dry + wet,
+        fedBy: rec?.fedBy,
+        doneTime: rec?.doneTime,
+        mood: rec?.mood,
+        note: rec?.note,
+        isExtra: false,
+        totalLogsForSession: 1,
+        previousFeeder: null,
+      };
+    }
+
+    // Meal not yet given today
     return {
       id: meal.id,
       title: meal.title,
       scheduledTime: meal.time,
-      isDone,
-      dryG: dry,
-      wetG: wet,
+      isDone: false,
+      dryG: 0,
+      wetG: 0,
       plannedDry: meal.dryFoodRange,
       plannedWet: meal.wetFoodRange,
-      totalG: dry + wet,
-      fedBy: rec?.fedBy,
-      doneTime: rec?.doneTime,
-      mood: rec?.mood,
-      note: rec?.note,
+      totalG: 0,
+      fedBy: undefined,
+      doneTime: undefined,
+      mood: undefined,
+      note: undefined,
       isExtra: false,
+      totalLogsForSession: 0,
+      previousFeeder: null,
     };
   });
 
-  // 2. Add extra snacks / feedings logged today (outside main schedule or explicit ekstra)
-  const extraLogsToday = feedingLogs.filter(
-    (l) => l.date === currentDateStr && (l.mealId === 'ekstra' || !schedules.some((s) => s.id === l.mealId))
+  // Extra snacks / feedings logged today (outside main schedule or explicit ekstra)
+  const extraLogsToday = sortedTodayLogs.filter(
+    (l) =>
+      l.mealId === 'ekstra' ||
+      !schedules.some(
+        (s) => s.id === l.mealId || (l.mealTitle && l.mealTitle.toLowerCase().includes(s.title.toLowerCase()))
+      )
   );
 
   extraLogsToday.forEach((log) => {
@@ -200,7 +274,7 @@ export const DailyFoodIntakeCard: React.FC<DailyFoodIntakeCardProps> = ({
             className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-bold transition-all shadow-sm"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>+ Catat Ekstra/Snack</span>
+            <span>Catat Ekstra/Snack</span>
           </button>
         </div>
       </div>
@@ -406,8 +480,30 @@ export const DailyFoodIntakeCard: React.FC<DailyFoodIntakeCardProps> = ({
                           <span className="text-rose-600 dark:text-rose-400">Wet: {s.wetG}g</span>
                         </div>
                         {s.fedBy && (
-                          <div className="text-[10px] opacity-65 truncate">
-                            Oleh: <span className="font-semibold">{s.fedBy}</span>
+                          <div className="text-[10px] opacity-75 truncate flex items-center justify-between gap-1">
+                            <span>
+                              Oleh: <span className="font-semibold text-neutral-900 dark:text-white">{s.fedBy}</span>
+                            </span>
+                            {s.totalLogsForSession > 1 && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold">
+                                Terbaru
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {s.previousFeeder && (
+                          <div className="text-[9px] text-neutral-400 dark:text-neutral-500 italic truncate">
+                            Sebelumnya: {s.previousFeeder}
+                          </div>
+                        )}
+                        {s.mood && (
+                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                            {s.mood === 'lahap' ? 'Lahap' : s.mood === 'sisa_sedikit' ? 'Sisa Sedikit' : s.mood}
+                          </div>
+                        )}
+                        {s.note && (
+                          <div className="text-[10px] text-neutral-500 dark:text-neutral-400 italic truncate">
+                            "{s.note}"
                           </div>
                         )}
                       </div>
