@@ -153,7 +153,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${activeMember.avatarColor}`} />
                   <span className="hidden md:inline opacity-70 text-[11px]">Pemberi:</span>
-                  <span className="font-semibold max-w-[55px] sm:max-w-[90px] truncate">{activeMember.name}</span>
+                  <span className="font-semibold whitespace-nowrap" title={activeMember.name}>
+                    {activeMember.name.slice(0, 6)}
+                  </span>
                   <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-60 shrink-0" />
                 </button>
 

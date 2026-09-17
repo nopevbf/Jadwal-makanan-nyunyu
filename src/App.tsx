@@ -113,15 +113,41 @@ export default function App() {
     localStorage.setItem('nyunyu_meal_schedules', JSON.stringify(schedules));
   }, [schedules]);
 
-  // Today's feeding record (keyed by date string YYYY-MM-DD)
-  const getTodayKey = () => new Date().toISOString().split('T')[0];
+  // Local date helper ensuring midnight rollover happens accurately in the user's timezone
+  const getLocalDateKey = (d: Date = new Date()): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [currentDateStr, setCurrentDateStr] = useState<string>(getLocalDateKey);
+
+  // Auto-detect midnight day change every 5 seconds to reset daily food intake counters
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const newKey = getLocalDateKey();
+      if (newKey !== currentDateStr) {
+        setCurrentDateStr(newKey);
+        try {
+          const saved = localStorage.getItem(`nyunyu_feeding_${newKey}`);
+          setTodayRecords(saved ? JSON.parse(saved) : {});
+        } catch {
+          setTodayRecords({});
+        }
+      }
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [currentDateStr]);
+
+  // Today's feeding record (keyed by local date string YYYY-MM-DD)
   const [todayRecords, setTodayRecords] = useState<Record<string, DailyFeedingRecord>>(() => {
     try {
-      const key = `nyunyu_feeding_${getTodayKey()}`;
+      const key = `nyunyu_feeding_${getLocalDateKey()}`;
       const saved = localStorage.getItem(key);
       if (saved) return JSON.parse(saved);
       // Default: check if initialFeedingLogs has any for today
-      const todayDate = getTodayKey();
+      const todayDate = getLocalDateKey();
       const logsToday = initialFeedingLogs.filter((l) => l.date === todayDate);
       const initialMap: Record<string, DailyFeedingRecord> = {};
       logsToday.forEach((l) => {
@@ -143,9 +169,9 @@ export default function App() {
   });
 
   useEffect(() => {
-    const key = `nyunyu_feeding_${getTodayKey()}`;
+    const key = `nyunyu_feeding_${currentDateStr}`;
     localStorage.setItem(key, JSON.stringify(todayRecords));
-  }, [todayRecords]);
+  }, [todayRecords, currentDateStr]);
 
   // Migration key to clean old mock feeding history and set Ka Aji as sole primary owner
   const MIGRATION_KEY = 'nyunyu_v2_clean_ka_aji';
@@ -321,7 +347,7 @@ export default function App() {
       }
     });
 
-    const unsubToday = subscribeTodayFeeding(getTodayKey(), (cloudRecords) => {
+    const unsubToday = subscribeTodayFeeding(currentDateStr, (cloudRecords) => {
       if (cloudRecords) {
         setTodayRecords((prev) => ({ ...prev, ...cloudRecords }));
       }
@@ -558,7 +584,7 @@ export default function App() {
     const isCurrentlyDone = todayRecords[mealId]?.isDone;
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const todayStr = getTodayKey();
+    const todayStr = currentDateStr;
 
     const meal = schedules.find((s) => s.id === mealId);
     const mealTitle = meal ? meal.title : mealId;
@@ -788,7 +814,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Cadangan_Data_Kucing_Nyunyu_${getTodayKey()}.json`;
+    a.download = `Cadangan_Data_Kucing_Nyunyu_${currentDateStr}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -799,7 +825,7 @@ export default function App() {
     if (parsed.schedules) handleUpdateSchedules(parsed.schedules);
     if (parsed.todayRecords) {
       setTodayRecords(parsed.todayRecords);
-      saveTodayFeedingToCloud(getTodayKey(), parsed.todayRecords).catch(() => {});
+      saveTodayFeedingToCloud(currentDateStr, parsed.todayRecords).catch(() => {});
     }
     if (parsed.feedingLogs) setFeedingLogs(parsed.feedingLogs);
     if (parsed.weightLogs) setWeightLogs(parsed.weightLogs);
@@ -851,6 +877,7 @@ export default function App() {
             activeMember={activeMember}
             darkMode={darkMode}
             onOpenProfileModal={() => setIsProfileModalOpen(true)}
+            currentDateStr={currentDateStr}
           />
         )}
 

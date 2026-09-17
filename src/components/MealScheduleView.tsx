@@ -26,6 +26,7 @@ import {
 } from '../types';
 import { playCatBellChime, playPurrSound } from '../utils/audio';
 import { generateGoogleCalendarUrl, downloadICSFile } from '../utils/calendar';
+import { DailyFoodIntakeCard } from './DailyFoodIntakeCard';
 
 interface MealScheduleViewProps {
   profile: CatProfile;
@@ -39,6 +40,7 @@ interface MealScheduleViewProps {
   activeMember: FamilyMember;
   darkMode: boolean;
   onOpenProfileModal: () => void;
+  currentDateStr?: string;
 }
 
 export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
@@ -52,8 +54,16 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
   activeMember,
   darkMode,
   onOpenProfileModal,
+  currentDateStr,
 }) => {
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const effectiveDateStr = currentDateStr || (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  })();
   const [loggingMealId, setLoggingMealId] = useState<string | null>(null);
   const [actualDry, setActualDry] = useState<number>(16);
   const [actualWet, setActualWet] = useState<number>(18);
@@ -190,10 +200,10 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       
       {/* Top Banner Alert / Countdown Card */}
-      <div className={`p-4 sm:p-5 rounded-3xl border transition-all ${
+      <div className={`order-1 p-4 sm:p-5 rounded-3xl border transition-all ${
         darkMode 
           ? 'bg-neutral-850 border-neutral-800 text-neutral-100 shadow-lg' 
           : 'bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-rose-500/10 border-amber-200/80 text-neutral-900 shadow-sm'
@@ -263,8 +273,22 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
         </div>
       </div>
 
-      {/* The Adorable Nyunyu Board (Faithful to the user's reference image!) */}
-      <div className={`p-5 sm:p-7 rounded-3xl border transition-all ${
+      {/* Seksi Total Asupan Makanan Hari Berjalan (Khusus mobile: urutan di bawah Jadwal Makan Nyunyu; Desktop: di atas) */}
+      <div className="order-3 md:order-2">
+        <DailyFoodIntakeCard
+          profile={profile}
+          schedules={schedules}
+          todayRecords={todayRecords}
+          feedingLogs={feedingLogs}
+          currentDateStr={effectiveDateStr}
+          activeMember={activeMember}
+          onAddFeedingLog={onAddFeedingLog}
+          darkMode={darkMode}
+        />
+      </div>
+
+      {/* The Adorable Nyunyu Board (Faithful to the user's reference image!) (Mobile: order-2, Desktop: order-3) */}
+      <div className={`order-2 md:order-3 p-5 sm:p-7 rounded-3xl border transition-all ${
         darkMode 
           ? 'bg-neutral-900 border-neutral-800 text-neutral-100 shadow-2xl' 
           : 'bg-[#18181b] border-neutral-800 text-neutral-100 shadow-xl'
@@ -704,7 +728,7 @@ export const MealScheduleView: React.FC<MealScheduleViewProps> = ({
       )}
 
       {/* Feeding History Section */}
-      <div className={`p-5 rounded-3xl border transition-all ${
+      <div className={`order-4 p-5 rounded-3xl border transition-all ${
         darkMode ? 'bg-neutral-850 border-neutral-800 text-neutral-100' : 'bg-white border-neutral-200 text-neutral-800'
       }`}>
         <div className="flex items-center justify-between mb-4">
