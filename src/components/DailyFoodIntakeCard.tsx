@@ -496,16 +496,6 @@ export const DailyFoodIntakeCard: React.FC<DailyFoodIntakeCardProps> = ({
                             Sebelumnya: {s.previousFeeder}
                           </div>
                         )}
-                        {s.mood && (
-                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                            {s.mood === 'lahap' ? 'Lahap' : s.mood === 'sisa_sedikit' ? 'Sisa Sedikit' : s.mood}
-                          </div>
-                        )}
-                        {s.note && (
-                          <div className="text-[10px] text-neutral-500 dark:text-neutral-400 italic truncate">
-                            "{s.note}"
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <div className="text-[11px] opacity-60">
